@@ -1,0 +1,44 @@
+Overview
+	Shows some letest/random photos.
+	Shows tag cloud.
+	Shows world map with random photos on it, all pinned to according coordinates.
+
+Settings
+	Edit source paths for crawling
+	Edit path for uploaded photos
+	Select path for saving thumbnails
+
+Assigning tags to random photo
+	Pictures appears one after another allowing user to tag them with one or several tags. 
+	Popular tags are floating aroung to speed up taggig.
+	Some technical tags are set automatically.
+
+Media crawling (scanning)
+	Engine goes over the specified paths and for each found photo do next:
+	 - adds image path to the DB
+	 - saves all EXIF data to DB
+	 - creates thumbnails for preview (medium: 600px height and small: 100px height)
+
+View photos by tag(s)
+	User selects some tag from the tagcloud or enters any and engine provides a list of photos with that tag.
+
+View photos by geolocation
+	User makes a polygon on the map and gallery shows him photos from that region.
+
+View photos by folder
+	User can see all available source paths under first level. Then user see the actual folder structure.
+	User is able to add some tag(s) to:
+	- some picture
+	- entire folder
+	- all pictures of the same date
+	- all pictures within some radius (geographically)
+
+Upload photos
+	User is able to upload photos to the upload folder into another folder with customisable name
+
+Public sharing
+	Under any view (by tag, by geolocation, by folder) it's possible to create publicly available link for sharing.
+	Some images may be excluded from sharing.
+	There is two available options:	
+	- share or not EXIF data
+	- middle-sized previews or full-sized images

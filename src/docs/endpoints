@@ -1,0 +1,31 @@
+/login
+	Accepts login and password and returns some random token back to the caller
+
+/logout
+	Performs invalidation of users token
+
+/photos_by_tags
+	Provides all photos with associated tags. Either by OR or by AND rules.
+
+/add_tags_to_photo
+	Adds user-defined tag(s) to image(s)
+
+/photo
+	Provides actual images by random key (temporary image identifier)
+
+/scan
+	Scans specified path for images. Crawler.
+	Can provide status of crawling.
+	Can stop current crawling process.
+
+/tags_of_photo
+	Provides all tags assigned for requested photo(s).
+
+/location_of_photo
+	Provide geolocation info about requested photo(s).
+
+/random_photo
+	Provide random photo id.
+
+
+

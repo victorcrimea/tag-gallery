@@ -1,0 +1,7 @@
+[package]
+name = "gallery"
+version = "0.1.0"
+authors = ["Victor Semenov <victor.semenov@sirinsoftware.com>"]
+
+[dependencies]
+iron = "0.6"
