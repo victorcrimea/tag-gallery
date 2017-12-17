@@ -1,0 +1,17 @@
+processors API:
+	- Create processor
+		INPUT:
+			number_of_workers: u32 - maximum number of active threads
+		OUTPUT:
+			Processor itself
+
+	- Add source_id to processing
+		INPUT:
+			source_id: u64 - id of the source in DB
+		OUTPUT:
+			Result(bool) - true if task was successfully added
+	- Get list of processing_sources
+		INPUT:
+			None
+		OUTPUT:
+			Vec<u64>: Vector representing list of source_id's being processed at the time of request
