@@ -129,8 +129,9 @@ impl ImageProcessorPool {
 		Ok(0)
 	}
 
-	fn create_thumbnail() -> Result(bool, bool) {
+	fn create_thumbnail() -> Result<bool, bool> {
 
+		Ok(true)
 	}
 }
 
