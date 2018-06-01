@@ -4,10 +4,18 @@ use std::collections::HashMap;
 use iron::typemap::Key;
 use std::sync::mpsc;
 use image;
-use image::{GenericImage};
+use image::{GenericImage, FilterType};
+use std::fs::File;
 
+use rayon::prelude::*;
+use rayon::iter::IntoParallelIterator;
 use db;
 use mysql as my;
+
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+use exif;
+use std;
 
 #[derive(Debug)]
 pub struct ImageProcessorPool {
@@ -109,8 +117,9 @@ impl ImageProcessorPool {
 	fn create_thumbs_in_source(source_id: u64) -> Result<u64, bool> {
 		let connection = db::get_connection();
 		let result = connection.prep_exec(r"
-			SELECT `id`,`relative_path` FROM `photos`
-			WHERE `source`=:source_id",
+			SELECT photos.id as id, CONCAT(`full_path`,`relative_path`) as `full_path` FROM `photos`, `sources`
+			WHERE sources.id=photos.source AND
+			sources.id=:source_id",
 			params!{"source_id" => source_id}
 			).unwrap();
 		
@@ -119,12 +128,52 @@ impl ImageProcessorPool {
 		result.for_each(|row| {
 			match row {
 				Ok(row) => {
-					let (id, relative_path) = my::from_row(row);
-					images.insert(id, relative_path);
+					let (id, full_path): (u64, String) = my::from_row(row);
+					
+
+					
+
+					images.insert(id, full_path);
 				},
 				Err(_) => {}
 			}
 		});
+
+		let counter  = AtomicUsize::new(0);
+		images.into_par_iter().for_each(|(id, full_path)| {
+			println!("Doing something for {:?}", full_path);
+
+
+			// let file = std::fs::File::open(full_path.clone()).unwrap();
+			// let reader = exif::Reader::new(
+			// 	&mut std::io::BufReader::new(&file)).unwrap();
+			// for f in reader.fields() {
+			// 	println!("{} {}", f.tag, f.value.display_as(f.tag));
+			// }
+			//Open image
+			let img = image::open(full_path).unwrap();
+			println!("Dimensions {:?}", img.dimensions());
+
+			//Scaling
+			let large = img.resize(1200, 1200, FilterType::Lanczos3);
+			let medium = img.resize(800, 800, FilterType::Lanczos3);
+			let small = img.resize(160, 160, FilterType::Nearest);
+
+			//Saving
+			let mut fout_large = File::create(format!("/storage/tag_gallery/large/{}.jpg", id)).unwrap();
+			let mut fout_medium = File::create(format!("/storage/tag_gallery/medium/{}.jpg", id)).unwrap();
+			let mut fout_small = File::create(format!("/storage/tag_gallery/small/{}.jpg", id)).unwrap();
+
+			counter.fetch_add(1, Ordering::SeqCst);
+
+			large.save(&mut fout_large, image::JPEG).unwrap();
+			medium.save(&mut fout_medium, image::JPEG).unwrap();
+			small.save(&mut fout_small, image::JPEG).unwrap();
+		});
+
+
+		
+
 
 		Ok(0)
 	}
