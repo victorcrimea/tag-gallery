@@ -13,6 +13,7 @@ extern crate rayon;
 extern crate image;
 extern crate config;
 extern crate persistent;
+ extern crate exif;
 
 use iron::prelude::*;
 use iron::status;
