@@ -1,5 +1,5 @@
 use mysql as my;
-
+use std::env;
 // pub fn db_test() {
 // 	let pool = my::Pool::new("mysql://root:getitstarted@localhost:3306").unwrap();
 
@@ -14,10 +14,10 @@ use mysql as my;
 fn get_opts() -> my::Opts {
 	let mut builder = my::OptsBuilder::new();
 	builder
-	    .ip_or_hostname(Some("localhost".to_string()))
-	    .db_name(Some("tag_gallery".to_string()))
-	    .user(Some("root".to_string()))
-	    .pass(Some("".to_string()));
+	    .ip_or_hostname(env::var("DB_HOST").ok())
+	    .db_name(env::var("DB_DATABASE").ok())
+	    .user(env::var("DB_USER").ok())
+	    .pass(env::var("DB_PASS").ok());
 	
 	builder.into()
 }
