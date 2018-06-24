@@ -65,7 +65,11 @@ pub fn list_source_paths(_request: &mut Request) -> IronResult<Response> {
 
 
 pub fn add_source_path(request: &mut Request) -> IronResult<Response> {
-	/// Adds source path to the database
+	/// Adds source path to the database.
+	///
+	/// This function saves provided absolute path (on the server) to the database
+	/// and goes over all jpeg files recursively in order to add them to DB.
+
 	let params = request.get_ref::<Params>().unwrap();
 
 	let path = &params["path"];
@@ -73,8 +77,8 @@ pub fn add_source_path(request: &mut Request) -> IronResult<Response> {
 	let connection = db::get_connection();
 	let result = connection.prep_exec(r"
 	     INSERT INTO `sources` 
-	             (`full_path`) 
-	     VALUES  (:path)", 
+	             (`full_path`,`indexed`) 
+	     VALUES  (:path,'no')", 
 	     params!{"path" => String::from_value(path)});
 
 	let mut source_id: u64 = 0;
@@ -91,7 +95,9 @@ pub fn add_source_path(request: &mut Request) -> IronResult<Response> {
 }
 
 fn is_jpg(entry: &DirEntry) -> bool {
-	//println!("DEBUG: {:?}", entry.file_name().to_str());
+	/// Checks if file is jpeg-related
+	///
+	/// It simply checks filename for the jp(e)g ending.
 	entry.file_name()
 		.to_str()
 		.map(|s| {
@@ -130,13 +136,18 @@ fn crawl_source(crawl_path: String, source_id: u64) {
 }
 
 fn save_images_to_db(images: Vec<GalleryImage>, source_id: u64) -> Result<bool, my::MySqlError> {
+	/// Adds images to database
+	///
+	/// It saves only meta information about images to database
+
 	let connection = db::get_connection();
 	
 	for image in images.iter() {
 		let result = connection.prep_exec(r"
 		     INSERT INTO `photos` 
 		             (`relative_path`, `source`, `filesize`) 
-		     VALUES  (:relative_path, :source, :filesize)", 
+		     VALUES  (:relative_path, :so
+		     urce, :filesize)", 
 			params!{
 				"relative_path" => image.relative_path.clone(),
 				"source" => source_id,
@@ -155,6 +166,8 @@ fn save_images_to_db(images: Vec<GalleryImage>, source_id: u64) -> Result<bool, 
 
 
 fn get_paths_of_images(search_path: String) -> Vec<String> {
+	/// Extacts relative paths of images in specified directory recursively.
+
 	let walker = WalkDir::new(search_path.clone()).into_iter();
 
 	let mut paths: Vec<String>= vec![];
