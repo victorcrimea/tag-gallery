@@ -1,1 +1,4 @@
 gallery_folder = "/storage/tag_gallery"
+username = "victor"
+password_hash = ""
+password_salt = ""
