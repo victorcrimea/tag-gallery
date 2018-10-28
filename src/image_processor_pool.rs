@@ -14,8 +14,6 @@ use mysql as my;
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use exif;
-use std;
 
 #[derive(Debug)]
 /// 
@@ -52,7 +50,10 @@ impl ImageProcessorPool {
 				let job = jobreceiver.recv().unwrap();
 				
 				println!("ImageProcessorPool got a job; Processing images in source_id: {}", job.source_id);
-				ImageProcessorPool::create_thumbs_in_source(settings["gallery_folder"].clone(), job.source_id);
+				match ImageProcessorPool::create_thumbs_in_source(settings["gallery_folder"].clone(), job.source_id) {
+					Ok(_) => {},
+					Err(_) => {println!("Unable to process images in the source.");}
+				}
 
 				let job_done = JobDone {source_id: job.source_id};
 				println!("Job Done! source_id: {:?}", job.source_id);
@@ -101,7 +102,7 @@ impl ImageProcessorPool {
 				Ok(job_done) => {
 					self.done_jobs.push(job_done);
 				},
-				Err(try_recv_error) => {
+				Err(_) => {
 					break;
 				}
 			}
@@ -109,7 +110,7 @@ impl ImageProcessorPool {
 		
 		//Searching for requested source_id
 		match self.done_jobs.iter().find(|&job_done| job_done.source_id == source_id) {
-			Some(value) => true,
+			Some(_) => true,
 			None => false
 		}
 	}
@@ -174,10 +175,9 @@ impl ImageProcessorPool {
 		Ok(0)
 	}
 
-	fn create_thumbnail() -> Result<bool, bool> {
-
-		Ok(true)
-	}
+	// fn create_thumbnail() -> Result<bool, bool> {
+	// 	Ok(true)
+	// }
 }
 
 pub struct ImageProcessorPoolShared;

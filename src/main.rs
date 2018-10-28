@@ -1,7 +1,7 @@
 #![deny(unused_extern_crates)]
 
 extern crate iron; 
-#[macro_use] extern crate params;
+extern crate params;
 extern crate router;
 extern crate logger;
 #[macro_use] extern crate mysql;
@@ -13,17 +13,14 @@ extern crate rayon;
 extern crate image;
 extern crate config;
 extern crate persistent;
- extern crate exif;
 
 use iron::prelude::*;
 use iron::status;
 use router::Router;
 use logger::Logger;
 use params::Params;
-use persistent::{Read, State};
+use persistent::State;
 use std::collections::HashMap;
-use std::thread;
-use std::time::Duration;
 
 //DB connectivity
 mod db;
@@ -98,7 +95,7 @@ fn main() {
 	chain.link_after(logger_after);
 
 	// Shared state init
-	let mut processor_pool = ImageProcessorPool::new(settings);
+	let processor_pool = ImageProcessorPool::new(settings);
 
 	//3 is a hypothetical source_id
 	// processor_pool.add_source_to_process(3);

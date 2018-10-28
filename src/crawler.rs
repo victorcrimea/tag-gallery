@@ -5,11 +5,7 @@ use params::FromValue;
 use db;
 use mysql as my;
 use walkdir::{DirEntry, WalkDir};
-use rayon::prelude::*;
-use std::path::Path;
 use std::fs;
-use image;
-use image::{GenericImage};
 
 
 use serde_json::to_string_pretty;
@@ -89,9 +85,12 @@ pub fn add_source_path(request: &mut Request) -> IronResult<Response> {
 		Err(_) => ()
 	}
 
-	crawl_source(String::from_value(path).unwrap(), source_id);
+	match crawl_source(String::from_value(path).unwrap(), source_id){
+		Ok(_) => {Ok(Response::with((status::Ok, "ok")))},
+		Err(err) => {Ok(Response::with((status::Ok, "Error: cannot crawl: {:?}", err)))}
+	}
 
-	Ok(Response::with((status::Ok, "ok")))
+	
 }
 
 fn is_jpg(entry: &DirEntry) -> bool {
@@ -109,7 +108,7 @@ fn is_jpg(entry: &DirEntry) -> bool {
 		.unwrap_or(false)
 }
 
-fn crawl_source(crawl_path: String, source_id: u64) {
+fn crawl_source(crawl_path: String, source_id: u64) -> Result<bool, &'static str>{
 	/// Goes recursively over all files in specified path and adds found jpegs to database
 
 	let source_path = crawl_path.clone();
@@ -132,10 +131,10 @@ fn crawl_source(crawl_path: String, source_id: u64) {
 		//println!("{} - {} bytes", rel_path, metadata.len());
 	}
 	
-	save_images_to_db(images, source_id);
+	save_images_to_db(images, source_id)
 }
 
-fn save_images_to_db(images: Vec<GalleryImage>, source_id: u64) -> Result<bool, my::MySqlError> {
+fn save_images_to_db(images: Vec<GalleryImage>, source_id: u64) -> Result<bool, &'static str> {
 	/// Adds images to database
 	///
 	/// It saves only meta information about images to database
@@ -156,8 +155,8 @@ fn save_images_to_db(images: Vec<GalleryImage>, source_id: u64) -> Result<bool, 
 		);
 
 		match result {
-			Ok(result) => (),
-			Err(e) => println!("{:?}", e)
+			Ok(_) => (),
+			Err(err) => println!("{:?}", err)
 		}
 
 	}

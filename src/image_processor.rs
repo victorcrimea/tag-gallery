@@ -4,7 +4,6 @@ use persistent::State;
 use params::Params;
 use params::FromValue;
 
-use std::{thread, time};
 use std::str::FromStr;
 use serde_json::to_string_pretty;
 
@@ -23,7 +22,7 @@ pub fn process_source_path(request: &mut Request) -> IronResult<Response> {
 		).unwrap_or(0);
 
 	let rwlock = request.get::<State<ImageProcessorPoolShared>>().unwrap();
-	let mut image_processor = rwlock.write().unwrap();
+	let image_processor = rwlock.write().unwrap();
 
 	match image_processor.add_source_to_process(source_id) {
 		Ok(_) => {
@@ -36,7 +35,7 @@ pub fn process_source_path(request: &mut Request) -> IronResult<Response> {
 				)
 			)
 		},
-		Err(err) => {
+		Err(_) => {
 			let out_json = json!({
 				"status": "locked",
 				"hint": "try later"
