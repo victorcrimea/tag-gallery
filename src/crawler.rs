@@ -59,12 +59,12 @@ pub fn list_source_paths(_request: &mut Request) -> IronResult<Response> {
 	)
 }
 
-
+/// Adds source path to the database.
+///
+/// This function saves provided absolute path (on the server) to the database
+/// and goes over all jpeg files recursively in order to add them to DB.
 pub fn add_source_path(request: &mut Request) -> IronResult<Response> {
-	/// Adds source path to the database.
-	///
-	/// This function saves provided absolute path (on the server) to the database
-	/// and goes over all jpeg files recursively in order to add them to DB.
+	
 
 	let params = request.get_ref::<Params>().unwrap();
 
@@ -93,10 +93,11 @@ pub fn add_source_path(request: &mut Request) -> IronResult<Response> {
 	
 }
 
+/// Checks if file is jpeg-related
+///
+/// It simply checks filename for the jp(e)g ending.
 fn is_jpg(entry: &DirEntry) -> bool {
-	/// Checks if file is jpeg-related
-	///
-	/// It simply checks filename for the jp(e)g ending.
+
 	entry.file_name()
 		.to_str()
 		.map(|s| {
@@ -107,9 +108,10 @@ fn is_jpg(entry: &DirEntry) -> bool {
 		})
 		.unwrap_or(false)
 }
-
+/// Extracts images from source
+/// Goes recursively over all files in specified path and adds found jpegs to database
 fn crawl_source(crawl_path: String, source_id: u64) -> Result<bool, &'static str>{
-	/// Goes recursively over all files in specified path and adds found jpegs to database
+	
 
 	let source_path = crawl_path.clone();
 	let relative_paths = get_paths_of_images(crawl_path);
@@ -134,10 +136,11 @@ fn crawl_source(crawl_path: String, source_id: u64) -> Result<bool, &'static str
 	save_images_to_db(images, source_id)
 }
 
+/// Adds images to database
+///
+/// It saves only meta information about images to database
 fn save_images_to_db(images: Vec<GalleryImage>, source_id: u64) -> Result<bool, &'static str> {
-	/// Adds images to database
-	///
-	/// It saves only meta information about images to database
+	
 
 	let connection = db::get_connection();
 	
@@ -163,9 +166,8 @@ fn save_images_to_db(images: Vec<GalleryImage>, source_id: u64) -> Result<bool, 
 	Ok(true)
 }
 
-
+/// Extacts relative paths of images in specified directory recursively.
 fn get_paths_of_images(search_path: String) -> Vec<String> {
-	/// Extacts relative paths of images in specified directory recursively.
 
 	let walker = WalkDir::new(search_path.clone()).into_iter();
 

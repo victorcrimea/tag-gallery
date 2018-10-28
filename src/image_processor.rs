@@ -9,10 +9,11 @@ use serde_json::to_string_pretty;
 
 use image_processor_pool::ImageProcessorPoolShared;
 
+/// Creates thumbnails for images in source_path
+/// This handler accepts source_path_id and starts thread 
+/// that goes over all images inside this path
+/// and creates thumbnails for them
 pub fn process_source_path(request: &mut Request) -> IronResult<Response> {
-	/// This handler accepts source_path_id and starts thread 
-	/// that goes over all images inside this path
-	/// and creates thumbnails for them
 
 	let params = request.get::<Params>().unwrap();
 	let source_id: u64 = u64::from_str(
