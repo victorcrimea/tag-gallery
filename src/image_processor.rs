@@ -7,7 +7,7 @@ use params::FromValue;
 use std::str::FromStr;
 use serde_json::to_string_pretty;
 
-use image_processor_pool::ImageProcessorPoolShared;
+use image_processor_pool_pool::ImageProcessorPoolShared;
 
 /// Creates thumbnails for images in source_path
 /// This handler accepts source_path_id and starts thread 
@@ -23,9 +23,9 @@ pub fn process_source_path(request: &mut Request) -> IronResult<Response> {
 		).unwrap_or(0);
 
 	let rwlock = request.get::<State<ImageProcessorPoolShared>>().unwrap();
-	let image_processor = rwlock.write().unwrap();
+	let image_processor_pool = rwlock.write().unwrap();
 
-	match image_processor.add_source_to_process(source_id) {
+	match image_processor_pool.add_source_to_process(source_id) {
 		Ok(_) => {
 			let out_json = json!({
 				"status": "accepted",
@@ -81,11 +81,11 @@ pub fn process_status(request: &mut Request) -> IronResult<Response> {
 
 
 	let rwlock = request.get::<State<ImageProcessorPoolShared>>().unwrap();
-	let mut image_processor = rwlock.write().unwrap();
+	let mut image_processor_pool = rwlock.write().unwrap();
 
-	//println!("{:?}", image_processor);
+	//println!("{:?}", image_processor_pool);
 
-	match image_processor.status_of(source_id) {
+	match image_processor_pool.status_of(source_id) {
 		true => {
 			let out_json = json!({
 				"status": "done"
