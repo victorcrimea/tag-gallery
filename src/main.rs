@@ -103,7 +103,9 @@ fn main() {
 	// thread::sleep(Duration::from_secs(1));
 	// println!("Status: {:?}", processor_pool.status_of(3));
 
-	chain.link_before(State::<ImageProcessorPoolShared>::one(image_processor_pool));
+	chain.link_before(
+		State::<ImageProcessorPoolShared>::one(image_processor_pool)
+	);
 
 	let bind = "0.0.0.0:3000";
 	match Iron::new(chain).http(bind) {
