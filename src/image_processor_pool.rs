@@ -41,7 +41,9 @@ impl ImageProcessorPool {
 	/// Create a new ImageProcessorPool with only one working thread
 	pub fn new(settings: HashMap<String, String>) -> ImageProcessorPool {
 
-		//Channel size = 0 means that there will be no bufferisation between threads
+		// Channel size = 0 means that there will be no bufferisation between
+		// threads. So nothing should remain inside the sync_channel. Jobs will
+		// go directly to the processing thread.
 		let channel_size = 0;
 		let (job_sender, jobreceiver) = mpsc::sync_channel::<Job>(channel_size);
 		let (job_done_sender, job_done_receiver) = mpsc::channel::<JobDone>();
@@ -62,6 +64,7 @@ impl ImageProcessorPool {
 			
 		});
 
+		// Return newly created structure (object)
 		ImageProcessorPool{
 			source_id: 0,
 			thread: thread,
