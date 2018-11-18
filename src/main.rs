@@ -43,10 +43,7 @@ fn login_handler(request: &mut Request) -> IronResult<Response> {
 }
 
 fn main() {
-	env_logger::init().unwrap_or_else(|_| {
-		println!("Cannot inititlize logger. Gracefully closing...");
-		::std::process::exit(1);
-	});
+	env_logger::init()
 
 
 	let mut settings = config::Config::default();
