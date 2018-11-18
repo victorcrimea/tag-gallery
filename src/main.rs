@@ -109,7 +109,7 @@ fn main() {
 
 	let bind = "0.0.0.0:3000";
 	match Iron::new(chain).http(bind) {
-		Ok(_) => println!("Server binded to {:?}", bind),
+		Ok(_) => println!("Server bound to {:?}", bind),
 		Err(_) => println!("Server couldn't bind")
 	};
 }
