@@ -49,10 +49,12 @@ impl ImageProcessorPool {
 		let (job_done_sender, job_done_receiver) = mpsc::channel::<JobDone>();
 		let thread = thread::spawn(move || {
 			loop {
+				// Waiting for job from the receiving end of the channel
 				let job = jobreceiver.recv().unwrap();
 				
 				println!("ImageProcessorPool got a job; Processing images \
 					in source_id: {}", job.source_id);
+				// Creating thumbnails for specified source
 				match ImageProcessorPool::create_thumbs_in_source(
 					settings["gallery_folder"].clone(), job.source_id) {
 					Ok(_) => {},
@@ -61,6 +63,7 @@ impl ImageProcessorPool {
 					}
 				}
 
+				// Preparing and sending JobDone object
 				let job_done = JobDone {source_id: job.source_id};
 				println!("Job Done! source_id: {:?}", job.source_id);
 				job_done_sender.send(job_done).unwrap();
@@ -104,7 +107,7 @@ impl ImageProcessorPool {
 	/// let task_status = image_processing_pool::status_of(3);
 	/// ```
 	pub fn status_of(&mut self, source_id: u64) -> bool {
-		//Getting all JobDone's from channel
+		// Getting all JobDone's from channel
 		loop {
 			match self.job_done_receiver.try_recv() {
 				Ok(job_done) => {
@@ -125,9 +128,13 @@ impl ImageProcessorPool {
 		}
 	}
 
+	/// Creates thumbnail images for corresponding source folder
 	fn create_thumbs_in_source(gallery_folder: String, source_id: u64)
 		-> Result<u64, bool> {
+
 		let connection = db::get_connection();
+		
+		// Select all photos from this source_id
 		let result = connection.prep_exec(r"
 			SELECT photos.id as id, CONCAT(`full_path`,`relative_path`) as 
 			`full_path` FROM `photos`, `sources`
@@ -136,8 +143,10 @@ impl ImageProcessorPool {
 			params!{"source_id" => source_id}
 			).unwrap();
 		
+		// We'll store images as pair id - absolute path
 		let mut images: HashMap<u64, String> = HashMap::new();
 
+		// Convert query resuts to HashMap
 		result.for_each(|row| {
 			match row {
 				Ok(row) => {
@@ -178,14 +187,10 @@ impl ImageProcessorPool {
 
 			counter.fetch_add(1, Ordering::SeqCst);
 
-			large.save(&mut fout_large, image::JPEG).unwrap();
-			medium.save(&mut fout_medium, image::JPEG).unwrap();
-			small.save(&mut fout_small, image::JPEG).unwrap();
+			large.save(&mut fout_large).unwrap();
+			medium.save(&mut fout_medium).unwrap();
+			small.save(&mut fout_small).unwrap();
 		});
-
-
-		
-
 
 		Ok(0)
 	}
