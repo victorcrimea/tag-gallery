@@ -51,10 +51,14 @@ impl ImageProcessorPool {
 			loop {
 				let job = jobreceiver.recv().unwrap();
 				
-				println!("ImageProcessorPool got a job; Processing images in source_id: {}", job.source_id);
-				match ImageProcessorPool::create_thumbs_in_source(settings["gallery_folder"].clone(), job.source_id) {
+				println!("ImageProcessorPool got a job; Processing images \
+					in source_id: {}", job.source_id);
+				match ImageProcessorPool::create_thumbs_in_source(
+					settings["gallery_folder"].clone(), job.source_id) {
 					Ok(_) => {},
-					Err(_) => {println!("Unable to process images in the source.");}
+					Err(_) => {
+						println!("Unable to process images in the source.");
+					}
 				}
 
 				let job_done = JobDone {source_id: job.source_id};
@@ -75,7 +79,8 @@ impl ImageProcessorPool {
 	}
 
 	/// Add processing task into separate thread
-	pub fn add_source_to_process(&self, source_id: u64) -> Result<bool, &'static str>{
+	pub fn add_source_to_process(&self, source_id: u64) 
+		-> Result<bool, &'static str>{
 		let job = Job {source_id: source_id};
 		
 		match self.job_sender.try_send(job) {
@@ -112,16 +117,20 @@ impl ImageProcessorPool {
 		}
 		
 		//Searching for requested source_id
-		match self.done_jobs.iter().find(|&job_done| job_done.source_id == source_id) {
+		match self.done_jobs
+			.iter()
+			.find(|&job_done| job_done.source_id == source_id) {
 			Some(_) => true,
 			None => false
 		}
 	}
 
-	fn create_thumbs_in_source(gallery_folder: String, source_id: u64) -> Result<u64, bool> {
+	fn create_thumbs_in_source(gallery_folder: String, source_id: u64)
+		-> Result<u64, bool> {
 		let connection = db::get_connection();
 		let result = connection.prep_exec(r"
-			SELECT photos.id as id, CONCAT(`full_path`,`relative_path`) as `full_path` FROM `photos`, `sources`
+			SELECT photos.id as id, CONCAT(`full_path`,`relative_path`) as 
+			`full_path` FROM `photos`, `sources`
 			WHERE sources.id=photos.source AND
 			sources.id=:source_id",
 			params!{"source_id" => source_id}
@@ -160,9 +169,12 @@ impl ImageProcessorPool {
 			let small = img.resize(160, 160, FilterType::Nearest);
 
 			//Saving
-			let mut fout_large = File::create(format!("{}/large/{}.jpg", gallery_folder, id)).unwrap();
-			let mut fout_medium = File::create(format!("{}/medium/{}.jpg", gallery_folder, id)).unwrap();
-			let mut fout_small = File::create(format!("{}/small/{}.jpg", gallery_folder, id)).unwrap();
+			let mut fout_large = File::create(
+				format!("{}/large/{}.jpg", gallery_folder, id)).unwrap();
+			let mut fout_medium = File::create(
+				format!("{}/medium/{}.jpg", gallery_folder, id)).unwrap();
+			let mut fout_small = File::create(
+				format!("{}/small/{}.jpg", gallery_folder, id)).unwrap();
 
 			counter.fetch_add(1, Ordering::SeqCst);
 
