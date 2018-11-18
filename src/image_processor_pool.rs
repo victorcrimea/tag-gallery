@@ -4,8 +4,7 @@ use std::collections::HashMap;
 use iron::typemap::Key;
 use std::sync::mpsc;
 use image;
-use image::{GenericImage, FilterType};
-use std::fs::File;
+use image::{GenericImageView, FilterType};
 
 use rayon::prelude::*;
 use rayon::iter::IntoParallelIterator;
@@ -178,18 +177,18 @@ impl ImageProcessorPool {
 			let small = img.resize(160, 160, FilterType::Nearest);
 
 			//Saving
-			let mut fout_large = File::create(
-				format!("{}/large/{}.jpg", gallery_folder, id)).unwrap();
-			let mut fout_medium = File::create(
-				format!("{}/medium/{}.jpg", gallery_folder, id)).unwrap();
-			let mut fout_small = File::create(
-				format!("{}/small/{}.jpg", gallery_folder, id)).unwrap();
+			// let mut fout_large = File::create(
+			// 	format!("{}/large/{}.jpg", gallery_folder, id)).unwrap();
+			// let mut fout_medium = File::create(
+			// 	format!("{}/medium/{}.jpg", gallery_folder, id)).unwrap();
+			// let mut fout_small = File::create(
+			// 	format!("{}/small/{}.jpg", gallery_folder, id)).unwrap();
 
 			counter.fetch_add(1, Ordering::SeqCst);
 
-			large.save(&mut fout_large).unwrap();
-			medium.save(&mut fout_medium).unwrap();
-			small.save(&mut fout_small).unwrap();
+			large.save(format!("{}/large/{}.jpg", gallery_folder, id)).unwrap();
+			medium.save(format!("{}/medium/{}.jpg", gallery_folder, id)).unwrap();
+			small.save(format!("{}/small/{}.jpg", gallery_folder, id)).unwrap();
 		});
 
 		Ok(0)

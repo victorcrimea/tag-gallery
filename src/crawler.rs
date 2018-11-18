@@ -26,18 +26,19 @@ struct GalleryImage {
 
 /// Provides all available source paths
 pub fn list_source_paths(_request: &mut Request) -> IronResult<Response> {
-	
+	println!("list_source_paths");
 
 	let connection = db::get_connection();
-	let result = connection.prep_exec(r"SELECT * FROM `sources`", ()).unwrap();
-
+	println!("list_source_paths1");
+	let result = connection.prep_exec(r"SELECT `id`,`full_path`, `indexed` FROM `sources`", ()).unwrap();
+	println!("list_source_paths2");
 	let mut paths: Vec<SourcePath> = vec![];
 
 
 	result.for_each(|row| {
 		match row {
 			Ok(row) => {
-				let (id, full_path, indexed) = my::from_row(row);
+				let (id, full_path, indexed) = my::from_row::<(u32, String, u32)>(row);
 				paths.push(SourcePath{
 					id: id,
 					full_path: full_path,
@@ -65,7 +66,6 @@ pub fn list_source_paths(_request: &mut Request) -> IronResult<Response> {
 /// and goes over all jpeg files recursively in order to add them to DB.
 pub fn add_source_path(request: &mut Request) -> IronResult<Response> {
 	
-
 	let params = request.get_ref::<Params>().unwrap();
 
 	let path = &params["path"];
