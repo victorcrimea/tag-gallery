@@ -45,7 +45,6 @@ fn login_handler(request: &mut Request) -> IronResult<Response> {
 fn main() {
 	env_logger::init();
 
-
 	let mut settings = config::Config::default();
 	settings
 		// Add in settings from the settings.toml file
