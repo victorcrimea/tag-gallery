@@ -10,7 +10,6 @@ extern crate env_logger;
 #[macro_use] extern crate serde_derive;
 extern crate walkdir;
 extern crate rayon;
-extern crate image;
 extern crate config;
 extern crate persistent;
 
