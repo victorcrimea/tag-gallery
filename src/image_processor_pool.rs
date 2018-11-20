@@ -63,6 +63,13 @@ impl ImageProcessorPool {
 					}
 				}
 
+				// Set source_id status to resized
+				// let _result = connection.prep_exec(r"
+				//      UPDATE `sources` 
+				//      SET   `status` = 'resized' 
+				//      WHERE `id` = :source_id", 
+				//      params!{"source_id" => job.source_id});
+
 				// Preparing and sending JobDone object
 				let job_done = JobDone {source_id: job.source_id};
 				println!("Job Done! source_id: {:?}", job.source_id);

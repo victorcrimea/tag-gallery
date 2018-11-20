@@ -14,7 +14,7 @@ use serde_json::to_string_pretty;
 struct SourcePath {
 	id: u32,
 	full_path: String,
-	indexed: u32
+	status: String
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -30,7 +30,7 @@ pub fn list_source_paths(_request: &mut Request) -> IronResult<Response> {
 
 	let connection = db::get_connection();
 	println!("list_source_paths1");
-	let result = connection.prep_exec(r"SELECT `id`,`full_path`, `indexed` FROM `sources`", ()).unwrap();
+	let result = connection.prep_exec(r"SELECT `id`,`full_path`, `status` FROM `sources`", ()).unwrap();
 	println!("list_source_paths2");
 	let mut paths: Vec<SourcePath> = vec![];
 
@@ -38,11 +38,11 @@ pub fn list_source_paths(_request: &mut Request) -> IronResult<Response> {
 	result.for_each(|row| {
 		match row {
 			Ok(row) => {
-				let (id, full_path, indexed) = my::from_row::<(u32, String, u32)>(row);
+				let (id, full_path, status) = my::from_row(row);
 				paths.push(SourcePath{
 					id: id,
 					full_path: full_path,
-					indexed: indexed
+					status: status
 				});
 			},
 			Err(_) => {}
@@ -73,8 +73,8 @@ pub fn add_source_path(request: &mut Request) -> IronResult<Response> {
 	let connection = db::get_connection();
 	let result = connection.prep_exec(r"
 	     INSERT INTO `sources` 
-	             (`full_path`,`indexed`) 
-	     VALUES  (:path,'no')", 
+	             (`full_path`) 
+	     VALUES  (:path)", 
 	     params!{"path" => String::from_value(path)});
 
 	let mut source_id: u64 = 0;
@@ -85,8 +85,16 @@ pub fn add_source_path(request: &mut Request) -> IronResult<Response> {
 		Err(_) => ()
 	}
 
-	match crawl_source(String::from_value(path).unwrap(), source_id){
-		Ok(_) => {Ok(Response::with((status::Ok, "ok")))},
+	match crawl_source(String::from_value(path).unwrap(), &source_id){
+		Ok(_) => {
+			// Source was successfully crawled
+			let _result = connection.prep_exec(r"
+			     UPDATE `sources` 
+			     SET   `status` = 'indexed' 
+			     WHERE `id` = :source_id", 
+			     params!{"source_id" => &source_id});
+			Ok(Response::with((status::Ok, "ok")))
+		},
 		Err(err) => {Ok(Response::with((status::Ok, "Error: cannot crawl: {:?}", err)))}
 	}
 
@@ -110,7 +118,7 @@ fn is_jpg(entry: &DirEntry) -> bool {
 }
 /// Extracts images from source
 /// Goes recursively over all files in specified path and adds found jpegs to database
-fn crawl_source(crawl_path: String, source_id: u64) -> Result<bool, &'static str>{
+fn crawl_source(crawl_path: String, source_id: &u64) -> Result<bool, &'static str>{
 	
 
 	let source_path = crawl_path.clone();
@@ -139,7 +147,7 @@ fn crawl_source(crawl_path: String, source_id: u64) -> Result<bool, &'static str
 /// Adds images to database
 ///
 /// It saves only meta information about images to database
-fn save_images_to_db(images: Vec<GalleryImage>, source_id: u64) -> Result<bool, &'static str> {
+fn save_images_to_db(images: Vec<GalleryImage>, source_id: &u64) -> Result<bool, &'static str> {
 	
 
 	let connection = db::get_connection();
@@ -148,8 +156,7 @@ fn save_images_to_db(images: Vec<GalleryImage>, source_id: u64) -> Result<bool, 
 		let result = connection.prep_exec(r"
 		     INSERT INTO `photos` 
 		             (`relative_path`, `source`, `filesize`) 
-		     VALUES  (:relative_path, :so
-		     urce, :filesize)", 
+		     VALUES  (:relative_path, :source, :filesize)", 
 			params!{
 				"relative_path" => image.relative_path.clone(),
 				"source" => source_id,
