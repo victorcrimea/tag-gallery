@@ -82,6 +82,10 @@ fn main() {
 		image_processor::process_status,
 		"process_status"
 	);
+	router.get("/api/get_image/:id/:size",
+		image_processor::get_image,
+		"get_image"
+	);
 
 	let mut chain = Chain::new(router);
 	let (logger_before, logger_after) = Logger::new(None);
