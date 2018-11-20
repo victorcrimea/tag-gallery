@@ -3,6 +3,7 @@ use std::thread::JoinHandle;
 use std::collections::HashMap;
 use iron::typemap::Key;
 use std::sync::mpsc;
+use std::process::Command;
 use image;
 use image::{GenericImageView, FilterType};
 
@@ -156,39 +157,41 @@ impl ImageProcessorPool {
 			}
 		});
 
-		let counter  = AtomicUsize::new(0);
 		images.into_par_iter().for_each(|(id, full_path)| {
 			println!("Doing something for {:?}", full_path);
 
+			// Create large image
+			Command::new("convert")
+				.arg(&full_path)
+				.arg("-resize")
+				.arg("1200x1200")
+				.arg("-quality")
+				.arg("100")
+				.arg(format!("{}/large/{}.jpg", gallery_folder, id))
+				.output()
+				.expect("failed to execute process");
 
-			// let file = std::fs::File::open(full_path.clone()).unwrap();
-			// let reader = exif::Reader::new(
-			// 	&mut std::io::BufReader::new(&file)).unwrap();
-			// for f in reader.fields() {
-			// 	println!("{} {}", f.tag, f.value.display_as(f.tag));
-			// }
-			//Open image
-			let img = image::open(full_path).unwrap();
-			println!("Dimensions {:?}", img.dimensions());
+			// Create medium image
+			Command::new("convert")
+				.arg(&full_path)
+				.arg("-resize")
+				.arg("800x800")
+				.arg("-quality")
+				.arg("100")
+				.arg(format!("{}/medium/{}.jpg", gallery_folder, id))
+				.output()
+				.expect("failed to execute process");
 
-			//Scaling
-			let large = img.resize(1200, 1200, FilterType::Lanczos3);
-			let medium = img.resize(800, 800, FilterType::Lanczos3);
-			let small = img.resize(160, 160, FilterType::Nearest);
-
-			//Saving
-			// let mut fout_large = File::create(
-			// 	format!("{}/large/{}.jpg", gallery_folder, id)).unwrap();
-			// let mut fout_medium = File::create(
-			// 	format!("{}/medium/{}.jpg", gallery_folder, id)).unwrap();
-			// let mut fout_small = File::create(
-			// 	format!("{}/small/{}.jpg", gallery_folder, id)).unwrap();
-
-			counter.fetch_add(1, Ordering::SeqCst);
-
-			large.save(format!("{}/large/{}.jpg", gallery_folder, id)).unwrap();
-			medium.save(format!("{}/medium/{}.jpg", gallery_folder, id)).unwrap();
-			small.save(format!("{}/small/{}.jpg", gallery_folder, id)).unwrap();
+			// Create small image (thumbnail)
+			Command::new("convert")
+				.arg(&full_path)
+				.arg("-resize")
+				.arg("160x160")
+				.arg("-quality")
+				.arg("100")
+				.arg(format!("{}/small/{}.jpg", gallery_folder, id))
+				.output()
+				.expect("failed to execute process");
 		});
 
 		Ok(0)
