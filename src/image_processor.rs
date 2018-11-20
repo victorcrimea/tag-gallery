@@ -3,6 +3,7 @@ use iron::status;
 use persistent::State;
 use params::Params;
 use params::FromValue;
+use std::thread;
 
 use std::str::FromStr;
 use serde_json::to_string_pretty;
@@ -25,6 +26,7 @@ pub fn process_source_path(request: &mut Request) -> IronResult<Response> {
 
 	let rwlock = request.get::<State<ImageProcessorPoolShared>>().unwrap();
 	let image_processor_pool = rwlock.write().unwrap();
+
 
 	match image_processor_pool.add_source_to_process(source_id) {
 		Ok(_) => {

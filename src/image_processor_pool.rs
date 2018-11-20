@@ -1,27 +1,25 @@
+use std::sync::Mutex;
+use std::sync::Arc;
 use std::thread;
 use std::thread::JoinHandle;
 use std::collections::HashMap;
 use iron::typemap::Key;
 use std::sync::mpsc;
 use std::process::Command;
-use image;
-use image::{GenericImageView, FilterType};
 
 use rayon::prelude::*;
 use rayon::iter::IntoParallelIterator;
 use db;
 use mysql as my;
 
-use std::sync::atomic::{AtomicUsize, Ordering};
 
 
 #[derive(Debug)]
-/// 
 pub struct ImageProcessorPool {
 	source_id: u64,
 	thread: JoinHandle<()>,
 	job_sender: mpsc::SyncSender<Job>,
-	job_done_receiver: mpsc::Receiver<JobDone>,
+	pub job_done_receiver: Arc<Mutex<mpsc::Receiver<JobDone>>>,
 	done_jobs: Vec<JobDone>
 }
 
@@ -29,13 +27,16 @@ unsafe impl Sync for ImageProcessorPool {}
 
 #[derive(Debug)]
 struct Job{
-	source_id: u64
+	source_id: u64,
 }
 
 #[derive(Debug)]
-struct JobDone {
-	source_id: u64
+pub struct JobDone {
+	source_id: u64,
 }
+
+
+unsafe impl Sync for JobDone {}
 
 impl ImageProcessorPool {
 	/// Create a new ImageProcessorPool with only one working thread
@@ -64,11 +65,12 @@ impl ImageProcessorPool {
 				}
 
 				// Set source_id status to resized
-				// let _result = connection.prep_exec(r"
-				//      UPDATE `sources` 
-				//      SET   `status` = 'resized' 
-				//      WHERE `id` = :source_id", 
-				//      params!{"source_id" => job.source_id});
+				let connection = db::get_connection();
+				 let _result = connection.prep_exec(r"
+				      UPDATE `sources` 
+				      SET   `status` = 'resized' 
+				      WHERE `id` = :source_id", 
+				      params!{"source_id" => job.source_id});
 
 				// Preparing and sending JobDone object
 				let job_done = JobDone {source_id: job.source_id};
@@ -83,13 +85,13 @@ impl ImageProcessorPool {
 			source_id: 0,
 			thread: thread,
 			job_sender: job_sender,
-			job_done_receiver: job_done_receiver,
+			job_done_receiver: Arc::new(Mutex::new(job_done_receiver)),
 			done_jobs: vec![]
 		}
 	}
 
 	/// Add processing task into separate thread
-	pub fn add_source_to_process(&self, source_id: u64) 
+	pub fn add_source_to_process(&self, source_id: u64)
 		-> Result<bool, &'static str>{
 		let job = Job {source_id: source_id};
 		
@@ -116,7 +118,7 @@ impl ImageProcessorPool {
 	pub fn status_of(&mut self, source_id: u64) -> bool {
 		// Getting all JobDone's from channel
 		loop {
-			match self.job_done_receiver.try_recv() {
+			match self.job_done_receiver.lock().unwrap().try_recv() {
 				Ok(job_done) => {
 					self.done_jobs.push(job_done);
 				},
