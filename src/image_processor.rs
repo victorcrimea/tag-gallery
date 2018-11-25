@@ -1,13 +1,15 @@
+// Standard library includes
+use std::str::FromStr;
+
+// Library includes
 use iron::prelude::*;
 use iron::status;
 use persistent::State;
 use params::Params;
 use params::FromValue;
-use std::thread;
-
-use std::str::FromStr;
 use serde_json::to_string_pretty;
 
+// Local includes
 use image_processor_pool::ImageProcessorPoolShared;
 
 /// Creates thumbnails for images in source_path
@@ -86,8 +88,6 @@ pub fn process_status(request: &mut Request) -> IronResult<Response> {
 	let rwlock = request.get::<State<ImageProcessorPoolShared>>().unwrap();
 	let mut image_processor_pool = rwlock.write().unwrap();
 
-	//println!("{:?}", image_processor_pool);
-
 	match image_processor_pool.status_of(source_id) {
 		true => {
 			let out_json = json!({
@@ -116,15 +116,4 @@ pub fn process_status(request: &mut Request) -> IronResult<Response> {
 
 
 	
-}
-
-// This handler serves image of requested size
-pub fn get_image(request: &mut Request) -> IronResult<Response> {
-	let _params = request.get::<Params>().unwrap();
-
-	Ok(
-		Response::with(
-			(status::Ok, "")
-		)
-	)
 }

@@ -1,15 +1,8 @@
-use mysql as my;
+// Standard library includes
 use std::env;
-// pub fn db_test() {
-// 	let pool = my::Pool::new("mysql://root:getitstarted@localhost:3306").unwrap();
 
-// 	pool.prep_exec(r"CREATE TABLE tag_gallery.payment (
-// 					 customer_id int not null,
-// 					 amount int not null,
-// 					 account_name text
-// 					 )", ()).unwrap();
-// }
-
+// Library includes
+use mysql as my;
 
 fn get_opts() -> my::Opts {
 	let mut builder = my::OptsBuilder::new();
@@ -23,8 +16,6 @@ fn get_opts() -> my::Opts {
 }
 
 pub fn get_connection() -> my::Pool {
-	
 	let options = get_opts();
-
 	my::Pool::new(options).unwrap()
 }
