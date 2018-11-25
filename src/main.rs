@@ -13,14 +13,6 @@ extern crate rayon;
 extern crate config;
 extern crate persistent;
 
-use iron::prelude::*;
-use iron::status;
-use router::Router;
-use logger::Logger;
-use params::Params;
-use persistent::State;
-use std::collections::HashMap;
-
 //DB connectivity
 mod db;
 
@@ -30,7 +22,20 @@ mod image_processor_pool;
 mod healthcheck;
 mod crawler;
 mod image_processor;
+mod image;
 
+// Standard library includes
+use std::collections::HashMap;
+
+// Library includes
+use iron::prelude::*;
+use iron::status;
+use router::Router;
+use logger::Logger;
+use params::Params;
+use persistent::State;
+
+// Local includes
 use image_processor_pool::{ImageProcessorPool, ImageProcessorPoolShared};
 
 fn login_handler(request: &mut Request) -> IronResult<Response> {
@@ -82,8 +87,8 @@ fn main() {
 		image_processor::process_status,
 		"process_status"
 	);
-	router.get("/api/get_image/:id/:size",
-		image_processor::get_image,
+	router.get("/api/image/:id/:size",
+		image::get,
 		"get_image"
 	);
 
@@ -93,14 +98,8 @@ fn main() {
 	
 	chain.link_after(logger_after);
 
-	// Shared state init
+	// Initialize shared image processor pool
 	let image_processor_pool = ImageProcessorPool::new(settings);
-
-	//3 is a hypothetical source_id
-	// processor_pool.add_source_to_process(3);
-	// println!("Status: {:?}", processor_pool.status_of(3));
-	// thread::sleep(Duration::from_secs(1));
-	// println!("Status: {:?}", processor_pool.status_of(3));
 
 	chain.link_before(
 		State::<ImageProcessorPoolShared>::one(image_processor_pool)
@@ -109,6 +108,6 @@ fn main() {
 	let bind = "0.0.0.0:3000";
 	match Iron::new(chain).http(bind) {
 		Ok(_) => println!("Server bound to {:?}", bind),
-		Err(_) => println!("Server couldn't bind")
+		Err(_) => println!("Server couldn't bind to {:?}", bind)
 	};
 }

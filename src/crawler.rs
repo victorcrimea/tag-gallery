@@ -1,14 +1,17 @@
+// Standard library includes
+use std::fs;
+
+// Library includes
 use iron::prelude::*;
 use iron::status;
 use params::Params;
 use params::FromValue;
-use db;
 use mysql as my;
 use walkdir::{DirEntry, WalkDir};
-use std::fs;
-
-
 use serde_json::to_string_pretty;
+
+// Local includes
+use db;
 
 #[derive(Serialize, Deserialize)]
 struct SourcePath {

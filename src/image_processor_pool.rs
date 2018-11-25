@@ -1,18 +1,20 @@
+// Standard library includes
 use std::sync::Mutex;
 use std::sync::Arc;
 use std::thread;
 use std::thread::JoinHandle;
 use std::collections::HashMap;
-use iron::typemap::Key;
 use std::sync::mpsc;
 use std::process::Command;
 
+// Library includes
+use iron::typemap::Key;
 use rayon::prelude::*;
 use rayon::iter::IntoParallelIterator;
-use db;
 use mysql as my;
 
-
+// Local includes
+use db;
 
 #[derive(Debug)]
 pub struct ImageProcessorPool {
@@ -205,11 +207,8 @@ impl ImageProcessorPool {
 
 		Ok(0)
 	}
-
-	// fn create_thumbnail() -> Result<bool, bool> {
-	// 	Ok(true)
-	// }
 }
 
+/// Used as a key to reference the ImageProcessorPool
 pub struct ImageProcessorPoolShared;
 impl Key for ImageProcessorPoolShared { type Value = ImageProcessorPool; }
