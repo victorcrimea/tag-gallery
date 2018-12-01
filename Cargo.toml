@@ -21,7 +21,7 @@ rayon = "0.9"
 image = "*"
 config = "*"
 persistent = "*"
-kamadak-exif = "0.3.0"
+kamadak-exif = "0.3.1"
 
 [dependencies.logger]
 git = "https://github.com/iron/logger.git"
