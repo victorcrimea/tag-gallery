@@ -15,7 +15,7 @@ use iron::typemap::Key;
 use rayon::prelude::*;
 use rayon::iter::IntoParallelIterator;
 use mysql as my;
-use exif::{DateTime, Reader, Value, Tag};
+use exif::{Reader, Value, Tag};
 
 // Local includes
 use db;
