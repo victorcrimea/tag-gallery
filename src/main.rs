@@ -12,6 +12,7 @@ extern crate walkdir;
 extern crate rayon;
 extern crate config;
 extern crate persistent;
+extern crate exif;
 
 //DB connectivity
 mod db;
