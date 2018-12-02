@@ -265,3 +265,32 @@ pub fn get_photos(source_id: u64) -> HashMap<u64, String> {
 	println!("images list size: {:?}", images.len());
 	return images;
 }
+
+pub fn get_photo_rand() -> (u64, String) {
+	let pool = db::get_connection();
+	
+	// Select all photos from this source_id
+	let mut connection = pool.get_conn().unwrap();
+	let result = connection.query(r"
+		SELECT photos.id as id, CONCAT(`full_path`,`relative_path`) as 
+		`full_path` FROM `photos`, `sources`
+		WHERE sources.id=photos.source
+		ORDER BY RAND()
+		LIMIT 1"
+	).unwrap();
+
+	// Convert query resuts to HashMap
+	let mut image = (0, String::from(""));
+	result.for_each(|row| {
+		match row {
+			Ok(row) => {
+				let (id, full_path): (u64, String) = my::from_row(row);
+				image = (id, full_path.to_string());
+			},
+			Err(_) => {
+				image = (0, "".to_string());
+			}
+		}
+	});
+	return image;
+}
