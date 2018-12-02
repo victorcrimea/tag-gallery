@@ -1,4 +1,6 @@
 // Standard library includes
+use router::Router;
+use std::collections::HashMap;
 use std::fs;
 
 // Library includes
@@ -54,6 +56,29 @@ pub fn list_source_paths(_request: &mut Request) -> IronResult<Response> {
 
 	let out_json = json!({
 		"paths": paths,
+	});
+
+	Ok(
+		Response::with(
+			(status::Ok, to_string_pretty(&out_json).unwrap())
+		)
+	)
+}
+
+pub fn list_photos(request: &mut Request) -> IronResult<Response> {
+	let ref id = request.extensions.get::<Router>().unwrap()
+	.find("id").unwrap_or("0");
+
+	let source_id = id.parse::<u64>().unwrap_or(0);
+
+	let mut ids: Vec<u64> = vec![];
+
+	for key in get_photos(source_id).keys() {
+		ids.push(*key);
+	}
+
+	let out_json = json!({
+		"photos": ids,
 	});
 
 	Ok(
@@ -209,4 +234,34 @@ fn get_paths_of_images(search_path: String) -> Vec<String> {
 		//println!("{:?}", paths);
 	}
 	paths
+}
+
+
+pub fn get_photos(source_id: u64) -> HashMap<u64, String> {
+	let connection = db::get_connection();
+	
+	// Select all photos from this source_id
+	let result = connection.prep_exec(r"
+		SELECT photos.id as id, CONCAT(`full_path`,`relative_path`) as 
+		`full_path` FROM `photos`, `sources`
+		WHERE sources.id=photos.source AND
+		sources.id=:source_id",
+		params!{"source_id" => source_id}
+	).unwrap();
+		
+	// We'll store images as pair id - absolute path
+	let mut images: HashMap<u64, String> = HashMap::new();
+
+	// Convert query resuts to HashMap
+	result.for_each(|row| {
+		match row {
+			Ok(row) => {
+				let (id, full_path): (u64, String) = my::from_row(row);
+				images.insert(id, full_path);
+			},
+			Err(_) => {}
+		}
+	});
+	println!("images list size: {:?}", images.len());
+	return images;
 }

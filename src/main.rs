@@ -77,6 +77,11 @@ fn main() {
 		crawler::list_source_paths,
 		"list_source_paths"
 	);
+
+	router.get("/api/list_photos/:id",
+		crawler::list_photos,
+		"list_photos"
+	);
 	router.get("/api/healthcheck",
 		healthcheck::get_handler,
 		"healthcheck"
