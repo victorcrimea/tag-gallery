@@ -35,9 +35,14 @@ use router::Router;
 use logger::Logger;
 use params::Params;
 use persistent::State;
+use iron::typemap::Key;
 
 // Local includes
 use image_processor_pool::{ImageProcessorPool, ImageProcessorPoolShared};
+
+#[derive(Copy, Clone)]
+pub struct Settings;
+impl Key for Settings { type Value = HashMap<String, String>; }
 
 fn login_handler(request: &mut Request) -> IronResult<Response> {
 	println!("{:?}", request.get_ref::<Params>());
@@ -72,6 +77,11 @@ fn main() {
 		crawler::list_source_paths,
 		"list_source_paths"
 	);
+
+	router.get("/api/list_photos/:id",
+		crawler::list_photos,
+		"list_photos"
+	);
 	router.get("/api/healthcheck",
 		healthcheck::get_handler,
 		"healthcheck"
@@ -100,10 +110,15 @@ fn main() {
 	chain.link_after(logger_after);
 
 	// Initialize shared image processor pool
-	let image_processor_pool = ImageProcessorPool::new(settings);
+	let image_processor_pool = ImageProcessorPool::new(settings.clone());
 
+	// Persistent data
 	chain.link_before(
 		State::<ImageProcessorPoolShared>::one(image_processor_pool)
+	);
+
+	chain.link_before(
+		State::<Settings>::one(settings)
 	);
 
 	let bind = "0.0.0.0:3000";

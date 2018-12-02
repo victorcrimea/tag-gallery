@@ -9,6 +9,7 @@ use std::process::Command;
 use std::fs::File;
 use std::io::BufReader;
 use std::string::String;
+use std::io::Write;
 
 // Library includes
 use iron::typemap::Key;
@@ -19,6 +20,7 @@ use exif::{Reader, Value, Tag};
 
 // Local includes
 use db;
+use crawler;
 
 #[derive(Debug)]
 pub struct ImageProcessorPool {
@@ -313,7 +315,7 @@ impl ImageProcessorPool {
 	/// Extracts GPS EXIF data from photos in source_id
 	fn process_gps(source_id: u64) -> Result<u64, bool> {
 		println!("Extracting EXIF!");
-		let images = ImageProcessorPool::get_photos(source_id);
+		let images = crawler::get_photos(source_id);
 		images.into_iter().for_each(|(id, full_path)|{
 			// Open file
 			let file = File::open(&full_path).unwrap();
@@ -349,56 +351,26 @@ impl ImageProcessorPool {
 		Ok(0)
 	}
 
-	fn get_photos(source_id: u64) -> HashMap<u64, String> {
-		let connection = db::get_connection();
-		
-		// Select all photos from this source_id
-		let result = connection.prep_exec(r"
-			SELECT photos.id as id, CONCAT(`full_path`,`relative_path`) as 
-			`full_path` FROM `photos`, `sources`
-			WHERE sources.id=photos.source AND
-			sources.id=:source_id",
-			params!{"source_id" => source_id}
-			).unwrap();
-		
-		// We'll store images as pair id - absolute path
-		let mut images: HashMap<u64, String> = HashMap::new();
-
-		// Convert query resuts to HashMap
-		result.for_each(|row| {
-			match row {
-				Ok(row) => {
-					let (id, full_path): (u64, String) = my::from_row(row);
-					images.insert(id, full_path);
-				},
-				Err(_) => {}
-			}
-		});
-		println!("images list size: {:?}", images.len());
-		return images;
-	}
 
 	/// Creates thumbnail images for corresponding source folder
 	fn create_thumbs_in_source(gallery_folder: String, source_id: u64)
 		-> Result<u64, bool> {
 
-		let images = ImageProcessorPool::get_photos(source_id);
-
-
+		let images = crawler::get_photos(source_id);
 
 		images.into_par_iter().for_each(|(id, full_path)| {
 			println!("Doing something for {:?}", full_path);
 
 			// Create large image
-			Command::new("convert")
-				.arg(&full_path)
-				.arg("-resize")
-				.arg("1200x1200")
-				.arg("-quality")
-				.arg("100")
-				.arg(format!("{}/large/{}.jpg", gallery_folder, id))
-				.output()
-				.expect("failed to execute process");
+			// Command::new("convert")
+			// 	.arg(&full_path)
+			// 	.arg("-resize")
+			// 	.arg("1200x1200")
+			// 	.arg("-quality")
+			// 	.arg("100")
+			// 	.arg(format!("{}/large/{}.jpg", gallery_folder, id))
+			// 	.output()
+			// 	.expect("failed to execute process");
 
 			// Create medium image
 			// Command::new("convert")
@@ -412,14 +384,36 @@ impl ImageProcessorPool {
 			// 	.expect("failed to execute process");
 
 			// Instead of medium image we get JPEG thumbnail
-			Command::new("exiftool")
+			match Command::new("exiftool")
 				.arg("-b")
 				.arg("-ThumbnailImage")
 				.arg(&full_path)
-				.arg("-o")
-				.arg(format!("{}/medium/{}.jpg", gallery_folder, id))
-				.output()
-				.expect("failed to execute process");
+				.output() {
+					Ok(out) => {
+						if out.stdout.len() > 0 {
+							let mut file = File::create(
+								format!("{}/medium/{}.jpg", gallery_folder, id)
+							).unwrap();
+							file.write_all(&out.stdout).unwrap();
+						} else {
+								Command::new("convert")
+									.arg(&full_path)
+									.arg("-resize")
+									.arg("600x600")
+									.arg("-quality")
+									.arg("70")
+									.arg(format!("{}/medium/{}.jpg", gallery_folder, id))
+									.output()
+									.expect("failed to execute process");
+						}
+
+						
+					},
+					Err(_) => {
+
+					}
+
+				}
 
 			// Create small image (thumbnail)
 			// Command::new("convert")
