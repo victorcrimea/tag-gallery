@@ -16,9 +16,12 @@ use Settings;
 
 // This handler serves image of requested size
 pub fn get(request: &mut Request) -> IronResult<Response> {
-	let settings = request.get::<State<Settings>>().unwrap();
-	//let gallery_folder = settings["gallery_folder"].as_str();
-	let gallery_folder = "/storage/tag_gallery";
+	// Read global state
+	let rwlock = request.get::<State<Settings>>().unwrap();
+	let settings = rwlock.read().unwrap();
+	let gallery_folder = settings["gallery_folder"].as_str();
+	
+	// Get url params
 	let ref id = request.extensions.get::<Router>().unwrap()
 	.find("id").unwrap_or("0");
 	let ref size = request.extensions.get::<Router>().unwrap()
