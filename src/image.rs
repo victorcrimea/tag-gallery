@@ -9,10 +9,12 @@ use iron::prelude::*;
 use iron::status;
 use mysql as my;
 use persistent;
+use rand::Rng;
 
 // Local includes
 use db;
 use Settings;
+use crawler;
 
 // This handler serves image of requested size
 pub fn get(request: &mut Request) -> IronResult<Response> {
@@ -27,12 +29,23 @@ pub fn get(request: &mut Request) -> IronResult<Response> {
 	let ref size = request.extensions.get::<Router>().unwrap()
 	.find("size").unwrap_or("0");
 
+	let photo_id: u64;
+	match *id {
+		"rand" => {
+			let photo = crawler::get_photo_rand();
+			photo_id = photo.0;
+		},
+		_ => {
+			photo_id = id.parse::<u64>().unwrap_or(0);;
+		}
+	}
+
 	// Check if photo exists
 	let connection = db::get_connection();
 	let result = connection.prep_exec(r"
 	    SELECT photos.id FROM `photos`
 	    WHERE photos.id = :id",
-	params!{"id" => id});
+	params!{"id" => photo_id});
 
 	match result {
 		Ok(result) => {
