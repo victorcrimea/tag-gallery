@@ -33,10 +33,7 @@ struct GalleryImage {
 
 /// Provides all available source paths
 pub fn list_source_paths(_request: &mut Request) -> IronResult<Response> {
-	println!("list_source_paths");
-
 	let connection = db::get_connection();
-	println!("list_source_paths1");
 	let result = connection.prep_exec(r"
 		SELECT sources.id,
 		       full_path,
@@ -46,9 +43,8 @@ pub fn list_source_paths(_request: &mut Request) -> IronResult<Response> {
 		FROM `sources`
 		LEFT JOIN `photos` on photos.source = sources.id
 		GROUP BY sources.id", ()).unwrap();
-	println!("list_source_paths2");
-	let mut paths: Vec<SourcePath> = vec![];
 
+	let mut paths: Vec<SourcePath> = vec![];
 
 	result.for_each(|row| {
 		match row {
