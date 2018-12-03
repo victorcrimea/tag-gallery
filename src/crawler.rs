@@ -19,7 +19,9 @@ use db;
 struct SourcePath {
 	id: u32,
 	full_path: String,
-	status: String
+	status: String,
+	num_photos: u32,
+	size: u64
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -35,7 +37,15 @@ pub fn list_source_paths(_request: &mut Request) -> IronResult<Response> {
 
 	let connection = db::get_connection();
 	println!("list_source_paths1");
-	let result = connection.prep_exec(r"SELECT `id`,`full_path`, `status` FROM `sources`", ()).unwrap();
+	let result = connection.prep_exec(r"
+		SELECT sources.id,
+		       full_path,
+		       status,
+		       count(photos.id) as num_photos,
+		       sum(filesize) as size
+		FROM `sources`
+		LEFT JOIN `photos` on photos.source = sources.id
+		GROUP BY sources.id", ()).unwrap();
 	println!("list_source_paths2");
 	let mut paths: Vec<SourcePath> = vec![];
 
@@ -43,11 +53,17 @@ pub fn list_source_paths(_request: &mut Request) -> IronResult<Response> {
 	result.for_each(|row| {
 		match row {
 			Ok(row) => {
-				let (id, full_path, status) = my::from_row(row);
+				let (id,
+					full_path,
+					status,
+					num_photos,
+					size) = my::from_row(row);
 				paths.push(SourcePath{
 					id: id,
 					full_path: full_path,
-					status: status
+					status: status,
+					num_photos: num_photos,
+					size: size
 				});
 			},
 			Err(_) => {}
