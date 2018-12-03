@@ -8,8 +8,6 @@ use router::Router;
 use iron::prelude::*;
 use iron::status;
 use mysql as my;
-use persistent;
-use rand::Rng;
 
 // Local includes
 use db;
