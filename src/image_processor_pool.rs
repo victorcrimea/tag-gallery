@@ -73,8 +73,8 @@ impl ImageProcessorPool {
 					}
 				}
 
-				// Extracting EXIF location data for specified source
-				match ImageProcessorPool::process_gps(job.source_id){
+				// Extracting EXIF data for specified source
+				match ImageProcessorPool::process_exif(job.source_id){
 					Ok(_) => {},
 					Err(_) => {
 						println!("Unable to extract EXIF data in the source.");
@@ -311,9 +311,8 @@ impl ImageProcessorPool {
 		return buf;
 	}
 
-
 	/// Extracts GPS EXIF data from photos in source_id
-	fn process_gps(source_id: u64) -> Result<u64, bool> {
+	fn process_exif(source_id: u64) -> Result<u64, bool> {
 		println!("Extracting EXIF!");
 		let images = crawler::get_photos(source_id);
 		images.into_iter().for_each(|(id, full_path)|{
@@ -326,6 +325,7 @@ impl ImageProcessorPool {
 			let altitude = ImageProcessorPool::read_altitude(&reader);
 			let date = ImageProcessorPool::read_gps_date(&reader);
 			let time = ImageProcessorPool::read_gps_time(&reader);
+
 			let connection = db::get_connection();
 
 			// Set image data
@@ -351,6 +351,20 @@ impl ImageProcessorPool {
 		Ok(0)
 	}
 
+	/// Copies EXIF Orientatio tag from one image to another
+	///
+	/// # Arguments
+	/// * `src` - source image path
+	/// * `dst` - destination image path
+	fn copy_exif_orientation(src: &str, dst: &str) {
+		Command::new("exiftool")
+				.arg("-TagsFromFile")
+				.arg(src)
+				.arg("-Orientation")
+				.arg(dst)
+				.output()
+				.expect("failed to execute process");
+	}
 
 	/// Creates thumbnail images for corresponding source folder
 	fn create_thumbs_in_source(gallery_folder: String, source_id: u64)
@@ -384,6 +398,7 @@ impl ImageProcessorPool {
 			// 	.expect("failed to execute process");
 
 			// Instead of medium image we get JPEG thumbnail
+			let medium = format!("{}/medium/{}.jpg", gallery_folder, id);
 			match Command::new("exiftool")
 				.arg("-b")
 				.arg("-ThumbnailImage")
@@ -391,9 +406,7 @@ impl ImageProcessorPool {
 				.output() {
 					Ok(out) => {
 						if out.stdout.len() > 0 {
-							let mut file = File::create(
-								format!("{}/medium/{}.jpg", gallery_folder, id)
-							).unwrap();
+							let mut file = File::create(&medium).unwrap();
 							file.write_all(&out.stdout).unwrap();
 						} else {
 								Command::new("convert")
@@ -402,7 +415,7 @@ impl ImageProcessorPool {
 									.arg("600x600")
 									.arg("-quality")
 									.arg("70")
-									.arg(format!("{}/medium/{}.jpg", gallery_folder, id))
+									.arg(&medium)
 									.output()
 									.expect("failed to execute process");
 						}
@@ -413,7 +426,10 @@ impl ImageProcessorPool {
 
 					}
 
-				}
+			}
+
+			// Preserve EXIF orientation flag
+			ImageProcessorPool::copy_exif_orientation(&full_path, &medium);
 
 			// Create small image (thumbnail)
 			// Command::new("convert")
