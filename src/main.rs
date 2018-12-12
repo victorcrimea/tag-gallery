@@ -107,7 +107,7 @@ fn main() {
 	let (logger_before, logger_after) = Logger::new(None);
 	chain.link_before(logger_before);
 	
-	chain.link_after(logger_after);
+	
 
 	// Initialize shared image processor pool
 	let image_processor_pool = ImageProcessorPool::new(settings.clone());
@@ -121,6 +121,8 @@ fn main() {
 		State::<Settings>::one(settings)
 	);
 
+	chain.link_after(logger_after);
+	
 	let bind = "0.0.0.0:3000";
 	match Iron::new(chain).http(bind) {
 		Ok(_) => println!("Server bound to {:?}", bind),
