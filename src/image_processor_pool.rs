@@ -340,7 +340,7 @@ impl ImageProcessorPool {
 			let longitude = ImageProcessorPool::read_longitude(&reader);
 			let altitude = ImageProcessorPool::read_altitude(&reader);
 			let date = ImageProcessorPool::read_gps_date(&reader);
-			let time = ImageProcessorPool::read_gps_time(&reader);
+			let gps_time = ImageProcessorPool::read_gps_time(&reader);
 			let exif_datetime = ImageProcessorPool::read_exif_datetime(&reader);
 
 			let connection = db::get_connection();
@@ -352,7 +352,7 @@ impl ImageProcessorPool {
 			           `exif_longitude` = :longitude,
 			           `exif_altitude`  = :altitude,
 			           `exif_gps_date`  = :date,
-			           `exif_gps_time`  = :time,
+			           `exif_gps_time`  = :gps_time,
 			           `exif_datetime`  = :exif_datetime 
 			     WHERE `id` = :id", 
 			params!{
@@ -361,7 +361,7 @@ impl ImageProcessorPool {
 				"longitude" => longitude,
 				"altitude" => altitude,
 				"date" => date,
-				"time" => time,
+				"gps_time" => gps_time,
 				"exif_datetime" => exif_datetime
 			});
 
