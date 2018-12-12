@@ -65,13 +65,13 @@ impl ImageProcessorPool {
 					in source_id: {}", job.source_id);
 				
 				// Creating thumbnails for specified source
-				match ImageProcessorPool::create_thumbs_in_source(
-					settings["gallery_folder"].clone(), job.source_id) {
-					Ok(_) => {},
-					Err(_) => {
-						println!("Unable to process images in the source.");
-					}
-				}
+				// match ImageProcessorPool::create_thumbs_in_source(
+				// 	settings["gallery_folder"].clone(), job.source_id) {
+				// 	Ok(_) => {},
+				// 	Err(_) => {
+				// 		println!("Unable to process images in the source.");
+				// 	}
+				// }
 
 				// Extracting EXIF data for specified source
 				match ImageProcessorPool::process_exif(job.source_id){
@@ -311,6 +311,22 @@ impl ImageProcessorPool {
 		return buf;
 	}
 
+	/// Gets EXIF time in ISO 8601 format
+	/// For example: "07:20:03"
+	///
+	/// # Arguments 
+	/// * `reader` - EXIF Reader object from kamadak-exif library
+	fn read_exif_datetime(reader: &Reader) -> String {
+		let iso_time_length = 8;
+		let mut buf = String::with_capacity(iso_time_length);
+
+		// Time as string (in ISO format)
+		if let Some(field) = reader.get_field(Tag::DateTime, false) {
+			buf = format!("{}", field.value.display_as(field.tag));
+		}
+		return buf;
+	}
+
 	/// Extracts GPS EXIF data from photos in source_id
 	fn process_exif(source_id: u64) -> Result<u64, bool> {
 		println!("Extracting EXIF!");
@@ -323,8 +339,9 @@ impl ImageProcessorPool {
 			let latitude = ImageProcessorPool::read_latitude(&reader);
 			let longitude = ImageProcessorPool::read_longitude(&reader);
 			let altitude = ImageProcessorPool::read_altitude(&reader);
-			let date = ImageProcessorPool::read_gps_date(&reader);
-			let time = ImageProcessorPool::read_gps_time(&reader);
+			let gps_date = ImageProcessorPool::read_gps_date(&reader);
+			let gps_time = ImageProcessorPool::read_gps_time(&reader);
+			let exif_datetime = ImageProcessorPool::read_exif_datetime(&reader);
 
 			let connection = db::get_connection();
 
@@ -334,16 +351,18 @@ impl ImageProcessorPool {
 			     SET   `exif_latitude` = :latitude,
 			           `exif_longitude` = :longitude,
 			           `exif_altitude`  = :altitude,
-			           `exif_gps_date`  = :date,
-			           `exif_gps_time`  = :time 
+			           `exif_gps_date`  = :gps_date,
+			           `exif_gps_time`  = :gps_time,
+			           `exif_datetime`  = :exif_datetime 
 			     WHERE `id` = :id", 
 			params!{
 				"id" => id,
 				"latitude" => latitude,
 				"longitude" => longitude,
 				"altitude" => altitude,
-				"date" => date,
-				"time" => time
+				"gps_date" => gps_date,
+				"gps_time" => gps_time,
+				"exif_datetime" => exif_datetime
 			});
 
 			//TODO: Implement quesry result check
