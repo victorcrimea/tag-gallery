@@ -79,15 +79,24 @@ pub fn get(request: &mut Request) -> IronResult<Response> {
 
 fn read_image(gallery_folder: &str, id: u64, size: &str) -> Option<Vec<u8>>{
 	let mut buffer: Vec<u8> = vec![];
-	let mut file = File::open(format!("{}/{}/{}.jpg", gallery_folder, size, id))
-	.unwrap();
-
-	match file.read_to_end(&mut buffer){
-		Ok(_) => {
-				return Some(buffer);
+	let file = File::open(
+		format!("{}/{}/{}.jpg", gallery_folder, size, id));
+	
+	match file {
+		Ok(mut file) => {
+			match file.read_to_end(&mut buffer){
+				Ok(_) => {
+						return Some(buffer);
+				},
+				Err(_) => {
+					return None;
+				}
+			}
 		},
 		Err(_) => {
-			return None;
+			return None
 		}
 	}
+
+	
 }
