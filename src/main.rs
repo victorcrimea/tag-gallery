@@ -102,6 +102,10 @@ fn main() {
 		image::get,
 		"get_image"
 	);
+	router.get("/api/image_info/:id",
+		image::info,
+		"image_info"
+	);
 
 	let mut chain = Chain::new(router);
 	let (logger_before, logger_after) = Logger::new(None);
