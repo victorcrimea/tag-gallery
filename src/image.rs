@@ -62,7 +62,8 @@ pub fn get(request: &mut Request) -> IronResult<Response> {
 				match read_image(gallery_folder, id, size) {
 					Some(data) => {
 						use iron::mime;
-    					let content_type = "image/jpeg".parse::<mime::Mime>().unwrap();
+    					let content_type =
+    						"image/jpeg".parse::<mime::Mime>().unwrap();
 						Ok(Response::with((content_type, status::Ok, data)))
 					},
 					None => {
@@ -120,8 +121,9 @@ pub fn info(request: &mut Request) -> IronResult<Response> {
 				}
 			});
 
-			Ok(Response::with((status::Ok, to_string_pretty(&out_json).unwrap())))
-			//Ok(Response::with((status::Ok, "")))
+			Ok(Response::with(
+				(status::Ok, to_string_pretty(&out_json).unwrap())
+			))
 		},
 		Err(_) => {
 			Ok(Response::with((status::NotFound, "")))
