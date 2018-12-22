@@ -65,13 +65,13 @@ impl ImageProcessorPool {
 					in source_id: {}", job.source_id);
 				
 				// Creating thumbnails for specified source
-				// match ImageProcessorPool::create_thumbs_in_source(
-				// 	settings["gallery_folder"].clone(), job.source_id) {
-				// 	Ok(_) => {},
-				// 	Err(_) => {
-				// 		println!("Unable to process images in the source.");
-				// 	}
-				// }
+				match ImageProcessorPool::create_thumbs_in_source(
+					settings["gallery_folder"].clone(), job.source_id) {
+					Ok(_) => {},
+					Err(_) => {
+						println!("Unable to process images in the source.");
+					}
+				}
 
 				// Extracting EXIF data for specified source
 				match ImageProcessorPool::process_exif(job.source_id){
@@ -409,6 +409,7 @@ impl ImageProcessorPool {
 				.arg("-TagsFromFile")
 				.arg(src)
 				.arg("-Orientation")
+				.arg("-overwrite_original")
 				.arg(dst)
 				.output()
 				.expect("failed to execute process");
@@ -424,26 +425,15 @@ impl ImageProcessorPool {
 			println!("Doing something for {:?}", full_path);
 
 			// Create large image
-			// Command::new("convert")
-			// 	.arg(&full_path)
-			// 	.arg("-resize")
-			// 	.arg("1200x1200")
-			// 	.arg("-quality")
-			// 	.arg("100")
-			// 	.arg(format!("{}/large/{}.jpg", gallery_folder, id))
-			// 	.output()
-			// 	.expect("failed to execute process");
-
-			// Create medium image
-			// Command::new("convert")
-			// 	.arg(&full_path)
-			// 	.arg("-resize")
-			// 	.arg("800x800")
-			// 	.arg("-quality")
-			// 	.arg("100")
-			// 	.arg(format!("{}/medium/{}.jpg", gallery_folder, id))
-			// 	.output()
-			// 	.expect("failed to execute process");
+			Command::new("convert")
+				.arg(&full_path)
+				.arg("-resize")
+				.arg("1200x1200")
+				.arg("-quality")
+				.arg("75")
+				.arg(format!("{}/large/{}.jpg", gallery_folder, id))
+				.output()
+				.expect("failed to execute process");
 
 			// Instead of medium image we get JPEG thumbnail
 			let medium = format!("{}/medium/{}.jpg", gallery_folder, id);
@@ -480,15 +470,15 @@ impl ImageProcessorPool {
 			ImageProcessorPool::copy_exif_orientation(&full_path, &medium);
 
 			// Create small image (thumbnail)
-			// Command::new("convert")
-			// 	.arg(&full_path)
-			// 	.arg("-resize")
-			// 	.arg("160x160")
-			// 	.arg("-quality")
-			// 	.arg("100")
-			// 	.arg(format!("{}/small/{}.jpg", gallery_folder, id))
-			// 	.output()
-			// 	.expect("failed to execute process");
+			Command::new("convert")
+				.arg(&full_path)
+				.arg("-resize")
+				.arg("200x200")
+				.arg("-quality")
+				.arg("50")
+				.arg(format!("{}/small/{}.jpg", gallery_folder, id))
+				.output()
+				.expect("failed to execute process");
 		});
 
 		Ok(0)
