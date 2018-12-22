@@ -1,14 +1,18 @@
 // Stndard includes
+
 use std::collections::HashMap;
 use persistent::State;
 use std::fs::File;
 use std::io::Read;
+
 
 // Library includes
 use router::Router;
 use iron::prelude::*;
 use iron::status;
 use mysql as my;
+use mysql::chrono::{NaiveDate,NaiveTime,NaiveDateTime};
+
 use serde_json::to_string_pretty;
 
 // Local includes
@@ -92,6 +96,9 @@ pub fn info(request: &mut Request) -> IronResult<Response> {
 	let result = connection.prep_exec(r"
 	    SELECT id,
 	           filesize,
+	           exif_gps_date,
+	           exif_gps_time,
+	           UNIX_TIMESTAMP(exif_datetime) as `exif_unix_timestamp`,
 	           exif_latitude,
 	           exif_longitude,
 	           exif_altitude
@@ -106,12 +113,21 @@ pub fn info(request: &mut Request) -> IronResult<Response> {
 			result.for_each(|row|{
 				match row {
 					Ok(mut row) => {
-						let size: u64 = row.take(1).unwrap_or(0);
-						let latitude: f64 = row.take(2).unwrap_or(0.0);
-						let longitude: f64 = row.take(3).unwrap_or(0.0);
-						let altitude: f64 = row.take(4).unwrap_or(0.0);
+						let size: u64 = row.take("size").unwrap_or(0);
+						let gps_date: NaiveDate = row.take("exif_gps_date").unwrap_or(NaiveDate::from_ymd(1970,1,1));
+						let gps_date: String = gps_date.to_string();
+						let gps_time: NaiveTime = row.take("exif_gps_time").unwrap_or(NaiveTime::from_hms(0,0,0));
+						let gps_time: String = gps_time.to_string();
+						let exif_timestamp: i64 = row.take("exif_unix_timestamp").unwrap_or(0);
+						//let exif_timestamp: String = exif_timestamp.to_string();
+						let latitude: f64 = row.take("exif_latitude").unwrap_or(0.0);
+						let longitude: f64 = row.take("exif_longitude").unwrap_or(0.0);
+						let altitude: f64 = row.take("exif_altitude").unwrap_or(0.0);
 						out_json = json!({
 							"size" : size,
+							"gps_date" : gps_date,
+							"gps_time" : gps_time,
+							"exif_timestamp" : exif_timestamp,
 							"latitude": latitude,
 							"longitude": longitude,
 							"altitude": altitude
