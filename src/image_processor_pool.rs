@@ -327,11 +327,34 @@ impl ImageProcessorPool {
 		return buf;
 	}
 
+	fn read_exif_width(full_path: &String) -> u32 {
+		let output = Command::new("exiftool")
+			.arg("-b")
+			.arg("-ExifImageWidth")
+			.arg(&full_path)
+			.output()
+			.expect("failed to execute process");
+		
+		String::from_utf8_lossy(&output.stdout).to_string().parse().unwrap_or(0)
+
+	}
+	fn read_exif_height(full_path: &String) -> u32 {
+		let output = Command::new("exiftool")
+			.arg("-b")
+			.arg("-ExifImageHeight")
+			.arg(&full_path)
+			.output()
+			.expect("failed to execute process");
+		
+		String::from_utf8_lossy(&output.stdout).to_string().parse().unwrap_or(0)
+
+	}
+
 	/// Extracts GPS EXIF data from photos in source_id
 	fn process_exif(source_id: u64) -> Result<u64, bool> {
 		println!("Extracting EXIF!");
 		let images = crawler::get_photos(source_id);
-		images.into_iter().for_each(|(id, full_path)|{
+		images.into_par_iter().for_each(|(id, full_path)|{
 			// Open file
 			let file = File::open(&full_path).unwrap();
 			let reader = Reader::new(&mut BufReader::new(&file)).unwrap();
@@ -342,6 +365,8 @@ impl ImageProcessorPool {
 			let gps_date = ImageProcessorPool::read_gps_date(&reader);
 			let gps_time = ImageProcessorPool::read_gps_time(&reader);
 			let exif_datetime = ImageProcessorPool::read_exif_datetime(&reader);
+			let exif_width = ImageProcessorPool::read_exif_width(&full_path);
+			let exif_height = ImageProcessorPool::read_exif_height(&full_path);
 
 			let connection = db::get_connection();
 
@@ -353,16 +378,20 @@ impl ImageProcessorPool {
 			           `exif_altitude`  = :altitude,
 			           `exif_gps_date`  = :gps_date,
 			           `exif_gps_time`  = :gps_time,
-			           `exif_datetime`  = :exif_datetime 
+			           `exif_datetime`  = :exif_datetime,
+			           `exif_width`     = :exif_width,
+			           `exif_height`    = :exif_height
 			     WHERE `id` = :id", 
 			params!{
-				"id" => id,
-				"latitude" => latitude,
-				"longitude" => longitude,
-				"altitude" => altitude,
-				"gps_date" => gps_date,
-				"gps_time" => gps_time,
-				"exif_datetime" => exif_datetime
+				"id"            => id,
+				"latitude"      => latitude,
+				"longitude"     => longitude,
+				"altitude"      => altitude,
+				"gps_date"      => gps_date,
+				"gps_time"      => gps_time,
+				"exif_datetime" => exif_datetime,
+				"exif_width"    => exif_width,
+				"exif_height"   => exif_height
 			});
 
 			//TODO: Implement quesry result check
