@@ -27,6 +27,8 @@ mod image;
 
 // Standard library includes
 use std::collections::HashMap;
+use std::process;
+use std::process::Command;
 
 // Library includes
 use iron::prelude::*;
@@ -52,7 +54,40 @@ fn login_handler(request: &mut Request) -> IronResult<Response> {
 	Ok(Response::with((status::Ok, response)))
 }
 
+fn check_dependencies() {
+	let mut termination:bool = false;
+	match Command::new("exiftool")
+			.arg("-ver")
+			.output() {
+				Ok(_) => {
+
+				},
+				Err(_) => {
+					termination = true;
+					println!("exiftool was not found. Please install exiftool or specify correct PATH");
+				}
+			}
+	match Command::new("convert")
+			.arg("-version")
+			.output() {
+				Ok(_) => {
+
+				},
+				Err(_) => {
+					termination = true;
+					println!("convert was not found. Please install Imagemagick or specify correct PATH");
+				}
+			}
+
+
+	if termination == true {
+		process::exit(100);
+	}
+}
+
 fn main() {
+	check_dependencies();
+
 	env_logger::init();
 
 	let mut settings = config::Config::default();
