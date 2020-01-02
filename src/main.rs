@@ -60,7 +60,6 @@ fn check_dependencies() {
 			.arg("-ver")
 			.output() {
 				Ok(_) => {
-
 				},
 				Err(_) => {
 					termination = true;
@@ -71,7 +70,6 @@ fn check_dependencies() {
 			.arg("-version")
 			.output() {
 				Ok(_) => {
-
 				},
 				Err(_) => {
 					termination = true;
@@ -136,6 +134,10 @@ fn main() {
 	router.get("/api/image/:id/:size",
 		image::get,
 		"get_image"
+	);
+	router.post("/api/image/:id/add_tag",
+		image::add_tag,
+		"add_tag"
 	);
 	router.get("/api/image_info/:id",
 		image::info,

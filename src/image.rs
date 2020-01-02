@@ -10,6 +10,8 @@ use std::io::Read;
 use router::Router;
 use iron::prelude::*;
 use iron::status;
+use params::Params;
+use params::FromValue;
 use mysql as my;
 use mysql::chrono::{NaiveDate,NaiveTime,NaiveDateTime};
 
@@ -89,7 +91,7 @@ pub fn info(request: &mut Request) -> IronResult<Response> {
 	let ref id = request.extensions.get::<Router>().unwrap()
 	.find("id").unwrap_or("0");
 
-	let photo_id: u64 = id.parse::<u64>().unwrap_or(0);;
+	let photo_id: u64 = id.parse::<u64>().unwrap_or(0);
 
 	// Check if photo exists
 	let connection = db::get_connection();
@@ -168,6 +170,57 @@ fn read_image(gallery_folder: &str, id: u64, size: &str) -> Option<Vec<u8>>{
 			return None
 		}
 	}
+}
+
+pub fn add_tag(request: &mut Request) -> IronResult<Response> {
+	// Get url params
+	let ref id = request.extensions.get::<Router>().unwrap()
+	.find("id").unwrap_or("0");
+	
+	let photo_id: u64 = id.parse::<u64>().unwrap_or(0);
+
+	// Get form data
+	let params = request.get::<Params>().unwrap();
+	let tag = String::from_value(&params["tag"]).unwrap();
+
+	//Add this tag if not added yet
+	let connection = db::get_connection();
+	let result = connection.prep_exec(r"
+	    INSERT INTO `tags`
+	           (`tag`   , `creation_date`)
+	    VALUES (:tag, now())",
+	params!{"tag" => tag.clone()});
+
+	match result {
+		Ok(result) => {
+			// Tag was added to db
+			//Ok(Response::with((status::Ok, "REMOVE1")));
+		},
+		Err(result) => {
+			// Tag is already exists
+			//Ok(Response::with((status::Ok, "REMOVE2")));
+		}
+	}
+
+	//Ok(Response::with((status::Ok, result.warnings().to_string())))
+
+	// Attach this tag to the photo if not attached yet
+	let result = connection.prep_exec(r"
+	    INSERT INTO `photos_tags`
+	           (`photo_id`, `tag`, `type`,   `creation_date`)
+	    VALUES (:photo_id, :tag,  'manual', now())",
+	params!{"photo_id" => photo_id, "tag" => tag});
 
 	
+	match result {
+		Ok(result) => {
+			// Tag was added to image
+			Ok(Response::with((status::Ok, "Tag added")))
+		},
+		Err(result) => {
+			// Tag is already added to this image
+			Ok(Response::with((status::Ok, "Tag already there")))
+		}
+	}
+
 }
