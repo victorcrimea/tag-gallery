@@ -40,110 +40,110 @@ pub struct MainDB(sqlx::MySqlPool);
 
 #[rocket::main]
 async fn main() -> Result<(), LambdaError> {
-    let rocket_app = create_server().attach(Compression::fairing());
+	let rocket_app = create_server().attach(Compression::fairing());
 
-    if is_running_on_lambda() {
-        // Launch on AWS Lambda
-        println!("Running on lambda!");
-        launch_rocket_on_lambda(rocket_app).await?;
-    } else {
-        // Launch local server
-        println!("Running on directly");
-        let _ = rocket_app.launch().await?;
-    }
+	if is_running_on_lambda() {
+		// Launch on AWS Lambda
+		println!("Running on lambda!");
+		launch_rocket_on_lambda(rocket_app).await?;
+	} else {
+		// Launch local server
+		println!("Running on directly");
+		let _ = rocket_app.launch().await?;
+	}
 
-    Ok(())
+	Ok(())
 }
 
 pub fn create_server() -> Rocket<Build> {
-    let figment = rocket::Config::figment().merge((
-        "limits",
-        Limits::new()
-            .limit("data-form", 6.mebibytes())
-            .limit("file", 4.mebibytes()),
-    ));
+	let figment = rocket::Config::figment().merge((
+		"limits",
+		Limits::new()
+			.limit("data-form", 6.mebibytes())
+			.limit("file", 4.mebibytes()),
+	));
 
-    let mut rocket_app = rocket::custom(&figment)
-        .mount(
-            "/docs/",
-            make_rapidoc(&RapiDocConfig {
-                title: Some("Backend-rs documentation".to_owned()),
-                general: GeneralConfig {
-                    spec_urls: vec![UrlObject::new("Rust", "openapi.json")],
-                    ..Default::default()
-                },
-                ui: UiConfig {
-                    theme: Theme::Dark,
-                    ..Default::default()
-                },
-                layout: LayoutConfig {
-                    render_style: RenderStyle::Focused,
-                    ..Default::default()
-                },
-                hide_show: HideShowConfig {
-                    allow_spec_url_load: false,
-                    allow_spec_file_load: false,
-                    show_header: false,
-                    ..Default::default()
-                },
-                custom_html: Some(String::from(include_str!("../static/rapidoc.html"))),
-                ..Default::default()
-            }),
-        )
-        .attach(MainDB::init());
+	let mut rocket_app = rocket::custom(&figment)
+		.mount(
+			"/docs/",
+			make_rapidoc(&RapiDocConfig {
+				title: Some("Tag Gallery documentation".to_owned()),
+				general: GeneralConfig {
+					spec_urls: vec![UrlObject::new("Rust", "openapi.json")],
+					..Default::default()
+				},
+				ui: UiConfig {
+					theme: Theme::Dark,
+					..Default::default()
+				},
+				layout: LayoutConfig {
+					render_style: RenderStyle::Focused,
+					..Default::default()
+				},
+				hide_show: HideShowConfig {
+					allow_spec_url_load: false,
+					allow_spec_file_load: false,
+					show_header: false,
+					..Default::default()
+				},
+				custom_html: Some(String::from(include_str!("../static/rapidoc.html"))),
+				..Default::default()
+			}),
+		)
+		.attach(MainDB::init());
 
-    let schema_settings = SchemaSettings::openapi3().with(|s| {
-        s.option_nullable = false;
-    });
+	let schema_settings = SchemaSettings::openapi3().with(|s| {
+		s.option_nullable = false;
+	});
 
-    let openapi_settings = rocket_okapi::settings::OpenApiSettings {
-        schema_settings,
-        json_path: "/docs/openapi.json".to_owned(),
-    };
-    let custom_route_spec = (vec![], custom_openapi_spec());
+	let openapi_settings = rocket_okapi::settings::OpenApiSettings {
+		schema_settings,
+		json_path: "/docs/openapi.json".to_owned(),
+	};
+	let custom_route_spec = (vec![], custom_openapi_spec());
 
-    mount_endpoints_and_merged_docs! {
-        rocket_app, "/", openapi_settings,
-        "/__DOCS_ONLY__" => custom_route_spec,
-        "/api" => endpoints::crawler::get_routes_and_docs(&openapi_settings),
-        "/api" => endpoints::healthcheck::get_routes_and_docs(&openapi_settings),
-        "/api" => endpoints::processor::get_routes_and_docs(&openapi_settings),
-        "/api" => endpoints::auth::get_routes_and_docs(&openapi_settings),
-        "/api" => endpoints::image::get_routes_and_docs(&openapi_settings),
-    };
+	mount_endpoints_and_merged_docs! {
+		rocket_app, "/", openapi_settings,
+		"/__DOCS_ONLY__" => custom_route_spec,
+		"/api" => endpoints::crawler::get_routes_and_docs(&openapi_settings),
+		"/api" => endpoints::healthcheck::get_routes_and_docs(&openapi_settings),
+		"/api" => endpoints::processor::get_routes_and_docs(&openapi_settings),
+		"/api" => endpoints::auth::get_routes_and_docs(&openapi_settings),
+		"/api" => endpoints::image::get_routes_and_docs(&openapi_settings),
+	};
 
-    // CORS settings
+	// CORS settings
 
-    if let Ok(cors) = rocket_cors::CorsOptions::default().to_cors() {
-        rocket_app = rocket_app.attach(cors)
-    }
+	if let Ok(cors) = rocket_cors::CorsOptions::default().to_cors() {
+		rocket_app = rocket_app.attach(cors)
+	}
 
-    rocket_app
+	rocket_app
 }
 
 fn custom_openapi_spec() -> OpenApi {
-    use rocket_okapi::okapi::openapi3::*;
+	use rocket_okapi::okapi::openapi3::*;
 
-    OpenApi {
-        openapi: OpenApi::default_version(),
-        info: Info {
-            title: "Tag gallery API".to_owned(),
-            contact: Some(Contact {
-                name: Some("Victor".to_owned()),
-                url: Some("mailto:suit.uanic@gmail.com".to_owned()),
-                email: None,
-                ..Default::default()
-            }),
-            version: "0.1.0".to_owned(),
-            ..Default::default()
-        },
-        servers: vec![Server {
-            url: "http://127.0.0.1:8000".to_owned(),
-            description: Some("Localhost".to_owned()),
-            ..Default::default()
-        }],
-        ..Default::default()
-    }
+	OpenApi {
+		openapi: OpenApi::default_version(),
+		info: Info {
+			title: "Tag gallery API".to_owned(),
+			contact: Some(Contact {
+				name: Some("Victor".to_owned()),
+				url: Some("mailto:suit.uanic@gmail.com".to_owned()),
+				email: None,
+				..Default::default()
+			}),
+			version: "0.1.0".to_owned(),
+			..Default::default()
+		},
+		servers: vec![Server {
+			url: "http://127.0.0.1:8000".to_owned(),
+			description: Some("Localhost".to_owned()),
+			..Default::default()
+		}],
+		..Default::default()
+	}
 }
 
 // fn main() {

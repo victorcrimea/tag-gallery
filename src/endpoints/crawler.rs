@@ -10,8 +10,15 @@ use serde::{Deserialize, Serialize};
 
 use crate::MainDB;
 
+mod helpers;
+use helpers::crawl_source;
+use helpers::get_photos;
+use helpers::Photos;
+use helpers::SourcePath;
+use helpers::Sources;
+
 pub fn get_routes_and_docs(settings: &OpenApiSettings) -> (Vec<rocket::Route>, OpenApi) {
-    openapi_get_routes_spec![settings: add_source_path, list_source_paths, list_photos]
+	openapi_get_routes_spec![settings: add_source_path, list_source_paths, list_photos]
 }
 
 /// Adds source path to the database.
@@ -21,122 +28,71 @@ pub fn get_routes_and_docs(settings: &OpenApiSettings) -> (Vec<rocket::Route>, O
 
 #[openapi(tag = "Crawler")]
 #[post("/add_source_path?<path>")]
-pub fn add_source_path(mut db: Connection<MainDB>, path: &str) -> crate::ApiResult<()> {
-    // let params = request.get_ref::<Params>().unwrap();
+pub async fn add_source_path(mut db: Connection<MainDB>, path: &str) -> crate::ApiResult<u32> {
+	let result = sqlx::query!(
+		"
+		INSERT INTO sources (full_path) VALUES (?)",
+		path
+	)
+	.execute(&mut *db)
+	.await?;
 
-    // let path = &params["path"];
+	let source_id = result.last_insert_id() as u32;
 
-    // let connection = db::get_connection();
-    // let result = connection.prep_exec(
-    //     r"
-    //   INSERT INTO `sources`
-    //           (`full_path`)
-    //   VALUES  (:path)",
-    //     params! {"path" => String::from_value(path)},
-    // );
+	crawl_source(&mut db, path.to_string(), &source_id).await?;
 
-    // let mut source_id: u64 = 0;
-    // match result {
-    //     Ok(result) => {
-    //         source_id = result.last_insert_id();
-    //     }
-    //     Err(_) => (),
-    // }
-
-    // match crawl_source(String::from_value(path).unwrap(), &source_id) {
-    //     Ok(_) => {
-    //         // Source was successfully crawled
-    //         let _result = connection.prep_exec(
-    //             r"
-    //     UPDATE `sources`
-    //     SET   `status` = 'indexed'
-    //     WHERE `id` = :source_id",
-    //             params! {"source_id" => &source_id},
-    //         );
-    //         Ok(Response::with((status::Ok, "ok")))
-    //     }
-    //     Err(err) => Ok(Response::with((
-    //         status::Ok,
-    //         "Error: cannot crawl: {:?}",
-    //         err,
-    //     ))),
-    // }
-
-    todo!()
+	sqlx::query!(
+		"
+		UPDATE sources
+		SET   status = 'indexed'
+		WHERE id = ?",
+		source_id
+	)
+	.execute(&mut *db)
+	.await?;
+	Ok(Json(source_id))
 }
 
 /// Provides all available source paths
 #[openapi(tag = "Crawler")]
 #[get("/list_source_paths")]
-pub fn list_source_paths(mut db: Connection<MainDB>) -> crate::ApiResult<()> {
-    //   let connection = db::get_connection();
-    //   let result = connection
-    //       .prep_exec(
-    //           r"
-    // SELECT sources.id,
-    //        full_path,
-    //        status,
-    //        count(photos.id) as num_photos,
-    //        sum(filesize) as size
-    // FROM `sources`
-    // LEFT JOIN `photos` on photos.source = sources.id
-    // GROUP BY sources.id",
-    //           (),
-    //       )
-    //       .unwrap();
+pub async fn list_source_paths(mut db: Connection<MainDB>) -> crate::ApiResult<Sources> {
+	let result = sqlx::query!(
+		"
+		SELECT sources.id,
+	       full_path,
+	       status,
+	       COUNT(photos.id) as num_photos,
+	       SUM(filesize) as size
+		FROM sources
+		LEFT JOIN photos on photos.source = sources.id
+		GROUP BY sources.id",
+	)
+	.fetch_all(&mut *db)
+	.await?;
 
-    //   let mut paths: Vec<SourcePath> = vec![];
+	let paths: Vec<SourcePath> = result
+		.into_iter()
+		.map(|row| SourcePath {
+			id: row.id,
+			full_path: row.full_path,
+			status: row.status,
+			num_photos: row.num_photos as u32,
+			size: row.size.unwrap().try_into().unwrap(),
+		})
+		.collect();
 
-    //   result.for_each(|row| match row {
-    //       Ok(row) => {
-    //           let (id, full_path, status, num_photos, size) = my::from_row(row);
-    //           paths.push(SourcePath {
-    //               id: id,
-    //               full_path: full_path,
-    //               status: status,
-    //               num_photos: num_photos,
-    //               size: size,
-    //           });
-    //       }
-    //       Err(_) => {}
-    //   });
-
-    //   let out_json = json!({
-    //       "paths": paths,
-    //   });
-
-    //   Ok(Response::with((
-    //       status::Ok,
-    //       to_string_pretty(&out_json).unwrap(),
-    //   )))
-    todo!()
+	Ok(Json(Sources { paths }))
 }
 
 #[openapi(tag = "Crawler")]
-#[get("/list_photos/<id>")]
-pub fn list_photos(mut db: Connection<MainDB>, id: &str) -> crate::ApiResult<()> {
-    // let ref id = request
-    //     .extensions
-    //     .get::<Router>()
-    //     .unwrap()
-    //     .find("id")
-    //     .unwrap_or("0");
+#[get("/list_photos/<source_id>")]
+pub async fn list_photos(mut db: Connection<MainDB>, source_id: u32) -> crate::ApiResult<Photos> {
+	let mut ids: Vec<u32> = vec![];
 
-    // let source_id = id.parse::<u64>().unwrap_or(0);
+	for image in get_photos(&mut db, source_id).await? {
+		ids.push(image.id);
+	}
 
-    // let mut ids: Vec<u64> = vec![];
-
-    // for key in get_photos(source_id).keys() {
-    //     ids.push(*key);
-    // }
-
-    // let out_json = json!({
-    //     "photos": ids,
-    // });
-
-    // Ok(Response::with((
-    //     status::Ok,
-    //     to_string_pretty(&out_json).unwrap(),
-    // )))
-    todo!()
+	Ok(Json(Photos { ids }))
 }
