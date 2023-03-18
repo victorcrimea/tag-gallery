@@ -65,28 +65,6 @@ impl OpenApiResponderInner for ApiError {
             }),
         );
         responses.insert(
-            "422".to_string(),
-            RefOr::Object(OpenApiReponse {
-                description: "\
-				# [422 Unprocessable Entity](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422)\n\
-				This response is given when you request body is not correctly formatted. \
-				"
-                .to_string(),
-                ..Default::default()
-            }),
-        );
-        responses.insert(
-            "450".to_string(),
-            RefOr::Object(OpenApiReponse {
-                description: "\
-				# [450 Adozi Api Error]\n\
-				This response is given when there is an error in request \
-				"
-                .to_string(),
-                ..Default::default()
-            }),
-        );
-        responses.insert(
             "500".to_string(),
             RefOr::Object(OpenApiReponse {
                 description: "\

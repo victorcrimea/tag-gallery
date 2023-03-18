@@ -10,6 +10,7 @@ use rocket_okapi::okapi::schemars::gen::SchemaSettings;
 use rocket_okapi::settings::UrlObject;
 use rocket_okapi::{mount_endpoints_and_merged_docs, rapidoc::*};
 
+mod endpoints;
 mod error;
 //mod image_processor_pool;
 //Request handlers
@@ -64,14 +65,11 @@ pub fn create_server() -> Rocket<Build> {
 
     let mut rocket_app = rocket::custom(&figment)
         .mount(
-            "/docs-rs/",
+            "/docs/",
             make_rapidoc(&RapiDocConfig {
                 title: Some("Backend-rs documentation".to_owned()),
                 general: GeneralConfig {
-                    spec_urls: vec![
-                        UrlObject::new("Rust", "openapi.json"),
-                        UrlObject::new("Python", "../openapi.json"),
-                    ],
+                    spec_urls: vec![UrlObject::new("Rust", "openapi.json")],
                     ..Default::default()
                 },
                 ui: UiConfig {
@@ -100,13 +98,18 @@ pub fn create_server() -> Rocket<Build> {
 
     let openapi_settings = rocket_okapi::settings::OpenApiSettings {
         schema_settings,
-        json_path: "/docs-rs/openapi.json".to_owned(),
+        json_path: "/docs/openapi.json".to_owned(),
     };
     let custom_route_spec = (vec![], custom_openapi_spec());
 
     mount_endpoints_and_merged_docs! {
         rocket_app, "/", openapi_settings,
         "/__DOCS_ONLY__" => custom_route_spec,
+        "/api" => endpoints::crawler::get_routes_and_docs(&openapi_settings),
+        "/api" => endpoints::healthcheck::get_routes_and_docs(&openapi_settings),
+        "/api" => endpoints::processor::get_routes_and_docs(&openapi_settings),
+        "/api" => endpoints::auth::get_routes_and_docs(&openapi_settings),
+        "/api" => endpoints::image::get_routes_and_docs(&openapi_settings),
     };
 
     // CORS settings
