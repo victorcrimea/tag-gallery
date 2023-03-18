@@ -1,5 +1,9 @@
+use chrono::Duration;
 use lambda_web::{is_running_on_lambda, launch_rocket_on_lambda, LambdaError};
 use rocket::data::{Limits, ToByteUnit};
+use rocket::tokio::sync::mpsc;
+use rocket::tokio::task;
+use rocket::tokio::time;
 use rocket::Rocket;
 use rocket::{routes, Build};
 use rocket_async_compression::Compression;
@@ -12,6 +16,7 @@ use rocket_okapi::{mount_endpoints_and_merged_docs, rapidoc::*};
 
 mod endpoints;
 mod error;
+mod pool_async;
 //mod image_processor_pool;
 //Request handlers
 //mod crawler;
@@ -38,24 +43,38 @@ pub type DataResult<'a, T> = Result<rocket::serde::json::Json<T>, rocket::serde:
 #[database("tag_gallery")]
 pub struct MainDB(sqlx::MySqlPool);
 
+pub struct TestState(mpsc::Sender<String>);
+
 #[rocket::main]
 async fn main() -> Result<(), LambdaError> {
-	let rocket_app = create_server().attach(Compression::fairing());
+	let (tx, mut rx) = mpsc::channel::<String>(32);
+	let handle = task::spawn(async move {
+		while let Some(message) = rx.recv().await {
+			println!("GOT = {}", message);
+			time::sleep(Duration::seconds(1).to_std().unwrap()).await;
+		}
+	});
 
-	if is_running_on_lambda() {
-		// Launch on AWS Lambda
-		println!("Running on lambda!");
-		launch_rocket_on_lambda(rocket_app).await?;
-	} else {
-		// Launch local server
-		println!("Running on directly");
-		let _ = rocket_app.launch().await?;
-	}
+	let rocket_app = create_server(tx).attach(Compression::fairing());
+
+	// if is_running_on_lambda() {
+	// 	// Launch on AWS Lambda
+	// 	println!("Running on lambda!");
+	// 	launch_rocket_on_lambda(rocket_app).await?;
+	// } else {
+	// 	// Launch local server
+	// 	println!("Running on directly");
+	// 	let _ = rocket_app.launch().await?;
+	// }
+
+	// Launch local server
+	println!("Running directly");
+	let _ = rocket_app.launch().await?;
 
 	Ok(())
 }
 
-pub fn create_server() -> Rocket<Build> {
+pub fn create_server(tx: mpsc::Sender<String>) -> Rocket<Build> {
 	let figment = rocket::Config::figment().merge((
 		"limits",
 		Limits::new()
@@ -64,6 +83,7 @@ pub fn create_server() -> Rocket<Build> {
 	));
 
 	let mut rocket_app = rocket::custom(&figment)
+		.mount("/", routes![endpoints::tester::add_data])
 		.mount(
 			"/docs/",
 			make_rapidoc(&RapiDocConfig {
@@ -90,7 +110,8 @@ pub fn create_server() -> Rocket<Build> {
 				..Default::default()
 			}),
 		)
-		.attach(MainDB::init());
+		.attach(MainDB::init())
+		.manage(TestState(tx));
 
 	let schema_settings = SchemaSettings::openapi3().with(|s| {
 		s.option_nullable = false;
@@ -110,6 +131,7 @@ pub fn create_server() -> Rocket<Build> {
 		"/api" => endpoints::processor::get_routes_and_docs(&openapi_settings),
 		"/api" => endpoints::auth::get_routes_and_docs(&openapi_settings),
 		"/api" => endpoints::image::get_routes_and_docs(&openapi_settings),
+		//"/api" => endpoints::tester::get_routes_and_docs(&openapi_settings),
 	};
 
 	// CORS settings

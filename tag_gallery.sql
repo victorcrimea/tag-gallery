@@ -5,17 +5,19 @@ SET time_zone = '+00:00';
 
 SET NAMES utf8mb4;
 
+DROP DATABASE IF EXISTS `tag_gallery`;
 CREATE DATABASE `tag_gallery` /*!40100 DEFAULT CHARACTER SET utf8mb4 */;
+
 USE `tag_gallery`;
 
 SET FOREIGN_KEY_CHECKS=0;
 
 DROP TABLE IF EXISTS `photos`;
 CREATE TABLE `photos` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `source` int(11) NOT NULL,
+  `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `source` int(11) UNSIGNED NOT NULL,
   `relative_path` varchar(128) NOT NULL,
-  `filesize` int(11) NOT NULL,
+  `filesize` int(11) UNSIGNED NOT NULL,
   `exif_latitude` double NOT NULL,
   `exif_longitude` double NOT NULL,
   `exif_altitude` double NOT NULL,
@@ -32,7 +34,7 @@ CREATE TABLE `photos` (
 
 DROP TABLE IF EXISTS `photos_tags`;
 CREATE TABLE `photos_tags` (
-  `photo_id` int(11) NOT NULL AUTO_INCREMENT,
+  `photo_id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
   `tag` varchar(128) NOT NULL,
   `type` enum('manual','exif') NOT NULL,
   `value` text NOT NULL,
@@ -46,7 +48,7 @@ CREATE TABLE `photos_tags` (
 
 DROP TABLE IF EXISTS `sources`;
 CREATE TABLE `sources` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
   `full_path` varchar(255) NOT NULL,
   `status` enum('new','resized','indexed') NOT NULL DEFAULT 'new',
   PRIMARY KEY (`id`)

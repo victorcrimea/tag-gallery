@@ -12,7 +12,7 @@ use crate::MainDB;
 
 mod helpers;
 use helpers::crawl_source;
-use helpers::get_photos;
+pub use helpers::get_photos;
 use helpers::Photos;
 use helpers::SourcePath;
 use helpers::Sources;

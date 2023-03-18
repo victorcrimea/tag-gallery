@@ -979,6 +979,7 @@ dependencies = [
  "serde_json",
  "serde_repr",
  "sqlx",
+ "tokio",
  "url",
  "validator",
  "walkdir",
