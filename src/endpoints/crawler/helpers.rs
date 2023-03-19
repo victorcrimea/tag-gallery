@@ -3,6 +3,7 @@ use std::fs;
 use rocket_db_pools::Connection;
 use rocket_okapi::JsonSchema;
 use serde::{Deserialize, Serialize};
+use sqlx::{pool::PoolConnection, MySql};
 use walkdir::{DirEntry, WalkDir};
 
 use crate::MainDB;
@@ -139,7 +140,7 @@ async fn save_images_to_db(
 }
 
 pub async fn get_photos(
-	db: &mut Connection<MainDB>,
+	db: &mut PoolConnection<MySql>,
 	source_id: u32,
 ) -> Result<Vec<Image>, crate::error::ApiError> {
 	let result = sqlx::query!(
@@ -152,7 +153,7 @@ pub async fn get_photos(
 		",
 		source_id
 	)
-	.fetch_all(&mut **db)
+	.fetch_all(db)
 	.await?;
 
 	let output: Vec<_> = result

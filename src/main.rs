@@ -1,5 +1,6 @@
 use chrono::Duration;
 use lambda_web::{is_running_on_lambda, launch_rocket_on_lambda, LambdaError};
+use pool_async::{ImageProcessorPoolAsync, Job, Settings};
 use rocket::data::{Limits, ToByteUnit};
 use rocket::tokio::sync::mpsc;
 use rocket::tokio::task;
@@ -13,6 +14,9 @@ use rocket_okapi::okapi::openapi3::OpenApi;
 use rocket_okapi::okapi::schemars::gen::SchemaSettings;
 use rocket_okapi::settings::UrlObject;
 use rocket_okapi::{mount_endpoints_and_merged_docs, rapidoc::*};
+use tokio::sync::mpsc::Sender;
+
+//use crate::pool_async::{ImageProcessorPoolAsync, Settings};
 
 mod endpoints;
 mod error;
@@ -43,18 +47,28 @@ pub type DataResult<'a, T> = Result<rocket::serde::json::Json<T>, rocket::serde:
 #[database("tag_gallery")]
 pub struct MainDB(sqlx::MySqlPool);
 
-pub struct TestState(mpsc::Sender<String>);
+pub struct TestState(mpsc::Sender<Job>);
+
+async fn start_processor() -> Sender<Job> {
+	let pool = sqlx::MySqlPool::connect("mysql://root:helloworld@local-db/tag_gallery")
+		.await
+		.unwrap();
+
+	let processor_sender = ImageProcessorPoolAsync::new(
+		pool,
+		Settings {
+			gallery_folder: "/home/victorcrimea/tag_gallery".to_string(),
+		},
+	)
+	.await
+	.sender();
+
+	processor_sender
+}
 
 #[rocket::main]
 async fn main() -> Result<(), LambdaError> {
-	let (tx, mut rx) = mpsc::channel::<String>(32);
-	let handle = task::spawn(async move {
-		while let Some(message) = rx.recv().await {
-			println!("GOT = {}", message);
-			time::sleep(Duration::seconds(1).to_std().unwrap()).await;
-		}
-	});
-
+	let tx = start_processor().await;
 	let rocket_app = create_server(tx).attach(Compression::fairing());
 
 	// if is_running_on_lambda() {
@@ -70,11 +84,12 @@ async fn main() -> Result<(), LambdaError> {
 	// Launch local server
 	println!("Running directly");
 	let _ = rocket_app.launch().await?;
+	println!("PRINT_TEST");
 
 	Ok(())
 }
 
-pub fn create_server(tx: mpsc::Sender<String>) -> Rocket<Build> {
+pub fn create_server(tx: mpsc::Sender<Job>) -> Rocket<Build> {
 	let figment = rocket::Config::figment().merge((
 		"limits",
 		Limits::new()

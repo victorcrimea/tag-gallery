@@ -1,11 +1,18 @@
 use exif::Exif;
+use rocket::error;
 use rocket::tokio::fs::File;
 use rocket::tokio::stream;
 use rocket::tokio::sync::mpsc;
 use rocket::tokio::task;
 use rocket::tokio::task::JoinHandle;
 use rocket_db_pools::Connection;
+use sqlx::pool::PoolConnection;
+use sqlx::MySql;
+use sqlx::MySqlPool;
+use tokio::io::AsyncBufRead;
+use tokio::io::AsyncBufReadExt;
 use tokio::io::AsyncReadExt;
+use tokio::io::AsyncSeek;
 use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
 
@@ -15,8 +22,8 @@ use crate::endpoints::crawler::get_photos;
 use crate::MainDB;
 
 #[derive(Debug)]
-struct Job {
-	source_id: u32,
+pub struct Job {
+	pub source_id: u32,
 }
 
 #[derive(Debug)]
@@ -25,7 +32,7 @@ pub struct JobDone {
 }
 
 pub struct Settings {
-	gallery_folder: String,
+	pub gallery_folder: String,
 }
 
 #[derive(Debug)]
@@ -39,14 +46,11 @@ pub struct ImageProcessorPoolAsync {
 
 impl ImageProcessorPoolAsync {
 	/// Create a new ImageProcessorPool with only one working thread
-	pub async fn new(
-		db: &'static mut Connection<MainDB>,
-		settings: Settings,
-	) -> ImageProcessorPoolAsync {
+	pub async fn new(db_pool: MySqlPool, settings: Settings) -> ImageProcessorPoolAsync {
 		// Channel size = 0 means that there will be no bufferisation between
 		// threads. So nothing should remain inside the sync_channel. Jobs will
 		// go directly to the processing thread.
-		let channel_size = 0;
+		let channel_size = 32;
 		let (job_sender, mut jobreceiver) = mpsc::channel::<Job>(channel_size);
 		let (job_done_sender, job_done_receiver) = mpsc::channel::<JobDone>(channel_size);
 		let handle = task::spawn(async move {
@@ -59,10 +63,14 @@ impl ImageProcessorPoolAsync {
 					in source_id: {}",
 					job.source_id
 				);
-
+				let mut connection = db_pool.acquire().await.unwrap();
 				// Creating thumbnails for specified source
-				match create_thumbs_in_source(db, settings.gallery_folder.clone(), job.source_id)
-					.await
+				match create_thumbs_in_source(
+					&mut connection,
+					settings.gallery_folder.clone(),
+					job.source_id,
+				)
+				.await
 				{
 					Ok(_) => {}
 					Err(_) => {
@@ -71,7 +79,7 @@ impl ImageProcessorPoolAsync {
 				}
 
 				// Extracting EXIF data for specified source
-				match process_exif(db, job.source_id).await {
+				match process_exif(&mut connection, job.source_id).await {
 					Ok(_) => {}
 					Err(_) => {
 						println!("Unable to extract EXIF data in the source.");
@@ -108,6 +116,10 @@ impl ImageProcessorPoolAsync {
 		}
 	}
 
+	pub fn sender(&self) -> mpsc::Sender<Job> {
+		self.job_sender.clone()
+	}
+
 	/// Add processing job into separate task
 	pub async fn add_source_to_process(&self, source_id: u32) -> Result<bool, &'static str> {
 		let job = Job {
@@ -116,7 +128,7 @@ impl ImageProcessorPoolAsync {
 
 		match self.job_sender.send(job).await {
 			Ok(_) => Ok(true),
-			Err(_) => Err("Cannot send job to ImageProcessorPool"),
+			Err(_) => Err("Cannot send job to ImageProcessorPoolAsync"),
 		}
 	}
 
@@ -146,7 +158,7 @@ impl ImageProcessorPoolAsync {
 }
 
 /// Extracts GPS EXIF data from photos in source_id
-async fn process_exif(db: &mut Connection<MainDB>, source_id: u32) -> Result<u32, bool> {
+async fn process_exif(db: &mut PoolConnection<MySql>, source_id: u32) -> Result<u32, bool> {
 	println!("Extracting EXIF!");
 	let images = get_photos(db, source_id).await.unwrap();
 	for image in images.into_iter() {
@@ -155,16 +167,24 @@ async fn process_exif(db: &mut Connection<MainDB>, source_id: u32) -> Result<u32
 		let mut image_bytes = Vec::new();
 		file.read_to_end(&mut image_bytes).await;
 		//let bufreader = BufReader::new(&file).await;
-		let exif = Reader::new().read_raw(image_bytes).unwrap();
 
-		let latitude = read_latitude(&exif);
-		let longitude = read_longitude(&exif);
-		let altitude = read_altitude(&exif);
-		let gps_date = read_gps_date(&exif);
-		let gps_time = read_gps_time(&exif);
-		let exif_datetime = read_exif_datetime(&exif);
-		let exif_width = read_exif_width(&image.full_path).await;
-		let exif_height = read_exif_height(&image.full_path).await;
+		let exif = Reader::new().read_raw(image_bytes);
+
+		match exif {
+			Ok(exif) => {
+				let latitude = read_latitude(&exif);
+				let longitude = read_longitude(&exif);
+				let altitude = read_altitude(&exif);
+				let gps_date = read_gps_date(&exif);
+				let gps_time = read_gps_time(&exif);
+				let exif_datetime = read_exif_datetime(&exif);
+				let exif_width = read_exif_width(&image.full_path).await;
+				let exif_height = read_exif_height(&image.full_path).await;
+			}
+			Err(err) => {
+				error!("{:?}", err.to_string())
+			}
+		}
 
 		println!("EXIF processed");
 		//let connection = db::get_connection();
@@ -409,7 +429,7 @@ async fn copy_exif_orientation(src: &str, dst: &str) {
 
 /// Creates thumbnail images for corresponding source folder
 async fn create_thumbs_in_source(
-	db: &mut Connection<MainDB>,
+	db: &mut PoolConnection<MySql>,
 	gallery_folder: String,
 	source_id: u32,
 ) -> Result<u64, bool> {
@@ -441,6 +461,7 @@ async fn create_thumbs_in_source(
 		{
 			Ok(out) => {
 				if out.stdout.len() > 0 {
+					println!("Trying create file: {:?}", &medium);
 					let mut file = File::create(&medium).await.unwrap();
 					file.write_all(&out.stdout).await.unwrap();
 				} else {
@@ -460,7 +481,7 @@ async fn create_thumbs_in_source(
 		}
 
 		// Preserve EXIF orientation flag
-		copy_exif_orientation(&image.full_path, &medium);
+		copy_exif_orientation(&image.full_path, &medium).await;
 
 		// Create small image (thumbnail)
 		Command::new("convert")
@@ -477,3 +498,31 @@ async fn create_thumbs_in_source(
 
 	Ok(0)
 }
+
+// pub async fn read_from_container<R>(
+// 	exif_reader: Reader,
+// 	reader: &mut R,
+// ) -> Result<Exif, exif::Error>
+// where
+// 	R: AsyncBufRead + AsyncSeek + Iterator,
+// {
+// 	let mut buf = Vec::new();
+// 	//reader.
+// 	reader.by_ref().take(4096).read_to_end(&mut buf)?;
+// 	if tiff::is_tiff(&buf) {
+// 		reader.read_to_end(&mut buf)?;
+// 	} else if exif::jpeg::is_jpeg(&buf) {
+// 		buf = exif::jpeg::get_exif_attr(&mut buf.chain(reader))?;
+// 	} else if exif::png::is_png(&buf) {
+// 		buf = exif::png::get_exif_attr(&mut buf.chain(reader))?;
+// 	} else if exif::isobmff::is_heif(&buf) {
+// 		reader.seek(io::SeekFrom::Start(0))?;
+// 		buf = exif::isobmff::get_exif_attr(reader)?;
+// 	} else if exif::webp::is_webp(&buf) {
+// 		buf = exif::webp::get_exif_attr(&mut buf.chain(reader))?;
+// 	} else {
+// 		return Err(exif::Error::InvalidFormat("Unknown image format"));
+// 	}
+
+// 	exif_reader.read_raw(buf)
+// }
